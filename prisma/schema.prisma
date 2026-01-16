@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Place {
+  id            String   @id
+  name          String
+  neighborhood  String
+  category      String   // coffee, restaurant, bar
+  tags          String   // JSON array stored as string
+  goodFor       String?  // JSON array stored as string (optional)
+  rating        Float
+  shortBlurb    String
+  longReview    String?
+  priceLevel    Int?
+  googleMapsUrl String?
+
+  // Enrichment fields from Google Places API
+  googlePlaceId String?  @unique
+  address       String?
+  lat           Float?
+  lng           Float?
+  googleMapsUri String?
+
+  // Photo fields
+  primaryPhotoName String?
+  primaryPhotoUrl  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
