@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "bot": "tsx bot/index.ts"
+    "bot": "tsx bot/index.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -16,6 +17,7 @@
     "@prisma/client": "^6.19.1",
     "next": "16.1.1",
     "node-telegram-bot-api": "^0.67.0",
+    "pg": "^8.17.1",
     "prisma": "^6.19.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
