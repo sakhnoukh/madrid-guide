@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const GOOD_FOR_LABELS: Record<string, string> = {
   "solo-coffee": "Solo coffee",
   "laptop-work": "Working with laptop",

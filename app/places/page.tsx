@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { PlacesClient } from "@/components/PlacesClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlacesPage() {
   const rawPlaces = await prisma.place.findMany({
     orderBy: { createdAt: "desc" },

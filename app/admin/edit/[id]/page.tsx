@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AdminEditClient } from "@/components/AdminEditClient";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{ id: string }>;
 };
