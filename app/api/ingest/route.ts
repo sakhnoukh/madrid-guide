@@ -1,5 +1,6 @@
 // app/api/ingest/route.ts
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/ratelimit";
 import {
   expandGoogleMapsUrl,
   extractPlaceIdFromUrl,
@@ -85,10 +86,19 @@ export async function POST(req: Request) {
   }
 
   if (!isValidIngestSecret(body.ingestSecret)) {
+    console.log("[INGEST_ERROR]", { message: "Unauthorized request" });
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Rate limit: 30 requests per minute
+  const allowed = await rateLimit("ingest", 30, 60);
+  if (!allowed) {
+    console.log("[INGEST_ERROR]", { message: "Rate limit exceeded" });
+    return new Response("Too many requests", { status: 429 });
+  }
+
   if (!body.mapsUrl) {
+    console.log("[INGEST_ERROR]", { message: "Missing mapsUrl" });
     return new Response("Missing mapsUrl", { status: 400 });
   }
 
@@ -107,6 +117,7 @@ export async function POST(req: Request) {
   }
 
   if (!placeId) {
+    console.log("[INGEST_ERROR]", { message: "Could not determine Place ID", url: expanded });
     return new Response(
       "Could not determine Google Place ID from URL. Try using a full Google Maps share link.",
       { status: 400 }
@@ -186,6 +197,14 @@ export async function POST(req: Request) {
           primaryPhotoUrl: photoUrl,
         },
       });
+
+  console.log("[INGEST]", {
+    ok: true,
+    expandedUrl: expanded,
+    googlePlaceId: placeId,
+    savedId: saved.id,
+    isUpdate: !!existing,
+  });
 
   return Response.json({
     ok: true,

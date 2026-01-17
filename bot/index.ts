@@ -177,6 +177,12 @@ bot.on("message", async (msg) => {
     return;
   }
 
+  // Handle /ping command (health check)
+  if (text.startsWith("/ping")) {
+    bot.sendMessage(chatId, `🏓 Pong! Bot is alive.\nBASE_URL: ${BASE_URL}`);
+    return;
+  }
+
   // Parse the message
   const parsed = parseMessage(text);
 
