@@ -23,8 +23,8 @@ type PlaceDetailPageProps = {
 
 export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) {
   const { id } = await params;
-  const rawPlace = await prisma.place.findUnique({
-    where: { id },
+  const rawPlace = await prisma.place.findFirst({
+    where: { id, published: true },
   });
 
   if (!rawPlace) {

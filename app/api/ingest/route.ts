@@ -195,6 +195,8 @@ export async function POST(req: Request) {
           googleMapsUri: details.googleMapsUri,
           primaryPhotoName: details.primaryPhotoName,
           primaryPhotoUrl: photoUrl,
+          published: false,
+          featured: false,
         },
       });
 

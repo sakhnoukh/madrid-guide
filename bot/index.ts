@@ -222,7 +222,7 @@ bot.on("message", async (msg) => {
     const data = await res.json();
 
     if (data.ok && data.place) {
-      const placeUrl = `${BASE_URL}${data.place.url}`;
+      const adminEditUrl = `${BASE_URL}/admin/edit/${data.place.id}`;
 
       const metaLines: string[] = [];
       if (parsed.rating) metaLines.push(`★ ${parsed.rating}`);
@@ -232,9 +232,9 @@ bot.on("message", async (msg) => {
 
       bot.sendMessage(
         chatId,
-        `✅ Added: ${data.place.name}\n` +
+        `✅ Added (Draft): ${data.place.name}\n` +
           (metaLines.length ? `${metaLines.join(" · ")}\n` : "") +
-          `🔗 ${placeUrl}`
+          `📝 Review + publish:\n${adminEditUrl}`
       );
     } else {
       bot.sendMessage(chatId, "❌ Something went wrong. Check the server logs.");

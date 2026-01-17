@@ -15,6 +15,8 @@ type PlaceDTO = {
   longReview?: string | null;
   priceLevel?: number | null;
   googleMapsUrl?: string | null;
+  published?: boolean;
+  featured?: boolean;
 };
 
 export function AdminEditClient({ place }: { place: PlaceDTO }) {
@@ -33,6 +35,9 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
 
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const [published, setPublished] = useState(place.published ?? false);
+  const [featured, setFeatured] = useState(place.featured ?? false);
 
   async function save() {
     setBusy(true);
@@ -102,6 +107,67 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
       </header>
 
       <div className="space-y-6">
+        {/* Publishing Controls */}
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">Published</div>
+              <div className="text-xs text-[#9A9A9A]">If off, won&apos;t show on public pages.</div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!adminSecret) { setStatus("Enter admin secret first"); return; }
+                setBusy(true); setStatus(null);
+                const res = await fetch(`/api/admin/places/${place.id}/flags`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ adminSecret, published: !published }),
+                });
+                setBusy(false);
+                if (!res.ok) { setStatus(`Toggle failed (${res.status})`); return; }
+                setPublished(!published);
+                setStatus("Updated ✅");
+              }}
+              disabled={busy}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-60",
+                published ? "bg-[#D46A4C] text-white" : "border border-[#D8C7B8] bg-[#FDF8F3] text-[#2F2F2F]",
+              ].join(" ")}
+            >
+              {published ? "Published" : "Draft"}
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">Featured</div>
+              <div className="text-xs text-[#9A9A9A]">Show on homepage picks.</div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!adminSecret) { setStatus("Enter admin secret first"); return; }
+                setBusy(true); setStatus(null);
+                const res = await fetch(`/api/admin/places/${place.id}/flags`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ adminSecret, featured: !featured }),
+                });
+                setBusy(false);
+                if (!res.ok) { setStatus(`Toggle failed (${res.status})`); return; }
+                setFeatured(!featured);
+                setStatus("Updated ✅");
+              }}
+              disabled={busy}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-60",
+                featured ? "bg-amber-500 text-white" : "border border-[#D8C7B8] bg-[#FDF8F3] text-[#2F2F2F]",
+              ].join(" ")}
+            >
+              {featured ? "Featured" : "Not featured"}
+            </button>
+          </div>
+        </div>
+
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9A9A]">
             Admin secret

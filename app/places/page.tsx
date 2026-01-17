@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PlacesPage() {
   const rawPlaces = await prisma.place.findMany({
+    where: { published: true },
     orderBy: { createdAt: "desc" },
   });
 

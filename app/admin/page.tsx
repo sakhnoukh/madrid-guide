@@ -4,7 +4,13 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const places = await prisma.place.findMany({
+  const drafts = await prisma.place.findMany({
+    where: { published: false },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const published = await prisma.place.findMany({
+    where: { published: true },
     orderBy: { updatedAt: "desc" },
   });
 
@@ -23,12 +29,50 @@ export default async function AdminHome() {
         </div>
       </header>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+      {/* Drafts Section */}
+      <h2 className="mb-3 font-serif text-2xl">Drafts ({drafts.length})</h2>
+      <div className="mb-10 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
         <div className="divide-y divide-black/5">
-          {places.map((p) => (
+          {drafts.map((p) => (
             <div key={p.id} className="flex items-center justify-between p-4">
               <div>
                 <div className="font-serif text-lg">{p.name}</div>
+                <div className="text-xs text-[#9A9A9A]">
+                  {p.neighborhood} · {p.category} · ★ {p.rating.toFixed(1)}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                  Draft
+                </span>
+                <Link
+                  href={`/admin/edit/${p.id}`}
+                  className="text-xs text-[#D46A4C] underline-offset-2 hover:underline"
+                >
+                  Review →
+                </Link>
+              </div>
+            </div>
+          ))}
+          {drafts.length === 0 && (
+            <div className="p-4 text-sm text-[#9A9A9A]">No drafts. All caught up!</div>
+          )}
+        </div>
+      </div>
+
+      {/* Published Section */}
+      <h2 className="mb-3 font-serif text-2xl">Published ({published.length})</h2>
+      <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+        <div className="divide-y divide-black/5">
+          {published.map((p) => (
+            <div key={p.id} className="flex items-center justify-between p-4">
+              <div>
+                <div className="font-serif text-lg">
+                  {p.name}
+                  {p.featured && (
+                    <span className="ml-2 text-xs text-[#D46A4C]">★ Featured</span>
+                  )}
+                </div>
                 <div className="text-xs text-[#9A9A9A]">
                   {p.neighborhood} · {p.category} · ★ {p.rating.toFixed(1)}
                 </div>
@@ -49,8 +93,8 @@ export default async function AdminHome() {
               </div>
             </div>
           ))}
-          {places.length === 0 && (
-            <div className="p-4 text-sm text-[#9A9A9A]">No places yet.</div>
+          {published.length === 0 && (
+            <div className="p-4 text-sm text-[#9A9A9A]">No published places yet.</div>
           )}
         </div>
       </div>
