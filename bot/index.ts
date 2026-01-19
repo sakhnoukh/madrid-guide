@@ -215,7 +215,8 @@ bot.on("message", async (msg) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      bot.sendMessage(chatId, `❌ Error: ${errorText}`);
+      console.error("[BOT] ingest failed", { status: res.status, body: errorText });
+      bot.sendMessage(chatId, `❌ Error (${res.status}): ${errorText}`);
       return;
     }
 
@@ -240,11 +241,11 @@ bot.on("message", async (msg) => {
       bot.sendMessage(chatId, "❌ Something went wrong. Check the server logs.");
     }
   } catch (err) {
-    console.error("Ingest error:", err);
+    console.error("[BOT] error", err);
     bot.sendMessage(chatId, `❌ Failed to reach the server. Is it running?`);
   }
 });
 
 bot.on("polling_error", (error) => {
-  console.error("Polling error:", error);
+  console.error("[BOT] polling_error", error);
 });

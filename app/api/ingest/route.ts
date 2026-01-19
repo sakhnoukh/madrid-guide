@@ -78,32 +78,37 @@ type IngestBody = {
 };
 
 export async function POST(req: Request) {
+  const reqId = crypto.randomUUID();
+  const startedAt = Date.now();
+
   let body: IngestBody;
   try {
     body = await req.json();
   } catch {
+    console.log("[INGEST_ERROR]", { reqId, message: "Invalid JSON" });
     return new Response("Invalid JSON", { status: 400 });
   }
 
   if (!isValidIngestSecret(body.ingestSecret)) {
-    console.log("[INGEST_ERROR]", { message: "Unauthorized request" });
+    console.log("[INGEST_ERROR]", { reqId, message: "Unauthorized request" });
     return new Response("Unauthorized", { status: 401 });
   }
 
   // Rate limit: 30 requests per minute
   const allowed = await rateLimit("ingest", 30, 60);
   if (!allowed) {
-    console.log("[INGEST_ERROR]", { message: "Rate limit exceeded" });
+    console.log("[INGEST_ERROR]", { reqId, message: "Rate limit exceeded" });
     return new Response("Too many requests", { status: 429 });
   }
 
   if (!body.mapsUrl) {
-    console.log("[INGEST_ERROR]", { message: "Missing mapsUrl" });
+    console.log("[INGEST_ERROR]", { reqId, message: "Missing mapsUrl" });
     return new Response("Missing mapsUrl", { status: 400 });
   }
 
   // 1) Expand short links
   const expanded = await expandGoogleMapsUrl(body.mapsUrl);
+  console.log("[INGEST]", { reqId, step: "expanded", inputUrl: body.mapsUrl, expandedUrl: expanded });
 
   // 2) Try extract Place ID
   let placeId = extractPlaceIdFromUrl(expanded);
@@ -117,12 +122,14 @@ export async function POST(req: Request) {
   }
 
   if (!placeId) {
-    console.log("[INGEST_ERROR]", { message: "Could not determine Place ID", url: expanded });
+    console.log("[INGEST_ERROR]", { reqId, message: "Could not determine Place ID", url: expanded });
     return new Response(
       "Could not determine Google Place ID from URL. Try using a full Google Maps share link.",
       { status: 400 }
     );
   }
+
+  console.log("[INGEST]", { reqId, step: "placeId", googlePlaceId: placeId });
 
   // 4) Fetch details
   const details = await getPlaceDetails(placeId);
@@ -201,11 +208,13 @@ export async function POST(req: Request) {
       });
 
   console.log("[INGEST]", {
-    ok: true,
-    expandedUrl: expanded,
-    googlePlaceId: placeId,
+    reqId,
+    step: "saved",
     savedId: saved.id,
+    name: saved.name,
+    published: saved.published,
     isUpdate: !!existing,
+    ms: Date.now() - startedAt,
   });
 
   return Response.json({
