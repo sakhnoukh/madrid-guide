@@ -11,6 +11,8 @@ export default async function PlacesPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  console.log("[PLACES] published count:", rawPlaces.length, rawPlaces.map(p => ({ id: p.id, name: p.name })));
+
   // Parse JSON strings back to arrays
   const places = rawPlaces.map((p) => ({
     ...p,

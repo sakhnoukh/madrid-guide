@@ -32,13 +32,16 @@ export async function PATCH(
       data,
     });
 
+    console.log("[FLAGS] Updated:", { id: updated.id, published: updated.published, featured: updated.featured });
+
     return Response.json({
       ok: true,
       id: updated.id,
       published: updated.published,
       featured: updated.featured,
     });
-  } catch {
+  } catch (err) {
+    console.error("[FLAGS] Error:", err);
     return new Response("Place not found", { status: 404 });
   }
 }
