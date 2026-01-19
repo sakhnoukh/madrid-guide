@@ -17,11 +17,24 @@ type PlaceDTO = {
   googleMapsUrl?: string | null;
 };
 
-export function PlacesClient({ places }: { places: PlaceDTO[] }) {
+type PlacesClientProps = {
+  places: PlaceDTO[];
+  initialCategory?: "all" | "coffee" | "restaurant" | "bar";
+  initialTag?: string;
+  initialQuery?: string;
+};
+
+export function PlacesClient({
+  places,
+  initialCategory = "all",
+  initialTag = "all",
+  initialQuery = "",
+}: PlacesClientProps) {
   const [activeCategory, setActiveCategory] = useState<
     "all" | "coffee" | "restaurant" | "bar"
-  >("all");
-  const [activeTag, setActiveTag] = useState<string>("all");
+  >(initialCategory);
+  const [activeTag, setActiveTag] = useState<string>(initialTag);
+  const [query, setQuery] = useState(initialQuery);
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -30,15 +43,34 @@ export function PlacesClient({ places }: { places: PlaceDTO[] }) {
   }, [places]);
 
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
     return places.filter((p) => {
       const categoryOk = activeCategory === "all" || p.category === activeCategory;
       const tagOk = activeTag === "all" || p.tags?.includes(activeTag);
-      return categoryOk && tagOk;
+
+      const queryOk =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.neighborhood.toLowerCase().includes(q) ||
+        (p.tags || []).some((t) => t.toLowerCase().includes(q));
+
+      return categoryOk && tagOk && queryOk;
     });
-  }, [places, activeCategory, activeTag]);
+  }, [places, activeCategory, activeTag, query]);
 
   return (
     <>
+      {/* SEARCH */}
+      <div className="mb-4">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, neighborhood, tag..."
+          className="w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
+        />
+      </div>
+
       {/* FILTERS */}
       <section className="mb-8 space-y-3">
         {/* Category */}

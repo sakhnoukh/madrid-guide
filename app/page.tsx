@@ -1,64 +1,120 @@
-export default function HomePage() {
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { PlaceCard } from "@/components/PlaceCard";
+import { Hero } from "@/components/Hero";
+import { MoodTiles } from "@/components/MoodTiles";
+
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const featured = await prisma.place.findMany({
+    where: { published: true, featured: true },
+    orderBy: { updatedAt: "desc" },
+    take: 6,
+  });
+
+  const newest = await prisma.place.findMany({
+    where: { published: true },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+  });
+
+  // Parse JSON fields
+  const parsedFeatured = featured.map((p) => ({
+    ...p,
+    tags: JSON.parse(p.tags) as string[],
+    goodFor: p.goodFor ? (JSON.parse(p.goodFor) as string[]) : null,
+  }));
+
+  const parsedNewest = newest.map((p) => ({
+    ...p,
+    tags: JSON.parse(p.tags) as string[],
+    goodFor: p.goodFor ? (JSON.parse(p.goodFor) as string[]) : null,
+  }));
+
   return (
-    <div className="min-h-screen">
-      {/* HERO */}
-      <section
-        id="hero"
-        className="relative flex min-h-[100vh] items-center justify-center overflow-hidden"
-      >
-        {/* Background video */}
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          autoPlay
-          loop
-          muted
-          playsInline
-        >
-          <source src="/videos/candle-placeholder.mp4" type="video/mp4" />
-        </video>
+    <main className="min-h-screen">
+      <Hero />
 
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/50" />
-
-        {/* Centered content */}
-        <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-[#F7F3EC]">
-          <p className="mb-2 text-xs uppercase tracking-[0.25em] text-[#E4D3C2]">
-            Sami&apos;s guide to Madrid
-          </p>
-          <h1 className="mb-4 font-serif text-4xl leading-tight sm:text-5xl md:text-6xl">
-            Places I actually go to.
-          </h1>
-          <p className="mb-8 max-w-xl text-sm text-[#F1E4D7] sm:text-base">
-            Cafés to read in, bars to talk in, and restaurants that feel worth
-            the bill.
-          </p>
+      {/* MOOD TILES */}
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl">Start here</h2>
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              Browse by mood. No overthinking.
+            </p>
+          </div>
+          <Link
+            href="/places"
+            className="text-sm text-[#D46A4C] underline-offset-2 hover:underline"
+          >
+            View all →
+          </Link>
         </div>
+
+        <MoodTiles />
       </section>
 
-      {/* ABOUT ON HOME */}
-      <section
-        id="about"
-        className="mx-auto max-w-6xl px-4 py-16 sm:py-20"
-      >
-        <h2 className="mb-4 font-serif text-2xl sm:text-3xl">
-          About this guide
-        </h2>
-        <div className="max-w-2xl space-y-3 text-sm text-[#4B4B4B] sm:text-base">
-          <p>
-            This is a personal map of Madrid: cafés, restaurants, and bars I
-            actually spend time in.
-          </p>
-          <p>
-            I only add places after I&apos;ve been there, and I try to be honest
-            about what they&apos;re good for: studying, dates, long
-            conversations, or just a quick coffee.
-          </p>
-          <p>
-            If I wouldn&apos;t bring a friend here, it&apos;s probably not on
-            this site.
-          </p>
+      {/* FEATURED PICKS */}
+      <section className="mx-auto max-w-6xl px-4 pb-14 sm:pb-16">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl">Featured picks</h2>
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              The spots I&apos;d send a friend to first.
+            </p>
+          </div>
+          <Link
+            href="/places"
+            className="text-sm text-[#D46A4C] underline-offset-2 hover:underline"
+          >
+            Browse →
+          </Link>
         </div>
+
+        {parsedFeatured.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
+            No featured places yet — mark a few as Featured in /admin.
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {parsedFeatured.map((p) => (
+              <PlaceCard key={p.id} place={p as any} />
+            ))}
+          </div>
+        )}
       </section>
-    </div>
+
+      {/* NEWEST */}
+      <section className="mx-auto max-w-6xl px-4 pb-20">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl">Newest</h2>
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              Recently added and published.
+            </p>
+          </div>
+          <Link
+            href="/places"
+            className="text-sm text-[#D46A4C] underline-offset-2 hover:underline"
+          >
+            See all →
+          </Link>
+        </div>
+
+        {parsedNewest.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
+            Nothing published yet — add places via bot and publish them in /admin.
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {parsedNewest.map((p) => (
+              <PlaceCard key={p.id} place={p as any} />
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }

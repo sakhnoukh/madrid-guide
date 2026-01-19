@@ -5,13 +5,23 @@ import { PlacesClient } from "@/components/PlacesClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function PlacesPage() {
+type PlacesPageProps = {
+  searchParams: Promise<{ category?: string; tag?: string; q?: string }>;
+};
+
+export default async function PlacesPage({ searchParams }: PlacesPageProps) {
+  const params = await searchParams;
+  const category = params?.category;
+  const tag = params?.tag;
+  const q = params?.q;
+
   const rawPlaces = await prisma.place.findMany({
-    where: { published: true },
+    where: {
+      published: true,
+      ...(category && category !== "all" ? { category: category as "coffee" | "restaurant" | "bar" } : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
-
-  console.log("[PLACES] published count:", rawPlaces.length, rawPlaces.map(p => ({ id: p.id, name: p.name })));
 
   // Parse JSON strings back to arrays
   const places = rawPlaces.map((p) => ({
@@ -29,7 +39,12 @@ export default async function PlacesPage() {
         </p>
       </header>
 
-      <PlacesClient places={places as any} />
+      <PlacesClient
+        places={places as any}
+        initialCategory={(category as "all" | "coffee" | "restaurant" | "bar") || "all"}
+        initialTag={tag || "all"}
+        initialQuery={q || ""}
+      />
     </div>
   );
 }
