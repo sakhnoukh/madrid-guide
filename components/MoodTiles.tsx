@@ -4,7 +4,12 @@ const tiles = [
   {
     title: "Laptop cafés",
     subtitle: "Quiet-ish, good coffee, stay awhile",
-    href: "/places?category=coffee&tag=laptop-friendly",
+    href: "/places?category=Café&tag=laptop-friendly",
+  },
+  {
+    title: "Brunch spots",
+    subtitle: "Lazy weekend mornings done right",
+    href: "/places?category=Brunch",
   },
   {
     title: "First date",
@@ -12,24 +17,29 @@ const tiles = [
     href: "/places?tag=first-date",
   },
   {
-    title: "Cheap + good",
-    subtitle: "Low commitment, high payoff",
-    href: "/places?tag=cheap-eats",
-  },
-  {
     title: "Late-night bars",
     subtitle: "For when the night keeps going",
-    href: "/places?category=bar&tag=late-night",
+    href: "/places?category=Bar&tag=late-night",
   },
   {
-    title: "Solo + calm",
-    subtitle: "Read, think, walk, repeat",
-    href: "/places?tag=solo-coffee",
+    title: "Clubbing",
+    subtitle: "When you want to dance",
+    href: "/places?category=Club",
   },
   {
     title: "Group spots",
     subtitle: "Easy for 4+ people",
     href: "/places?tag=groups",
+  },
+  {
+    title: "Studying at Masters",
+    subtitle: "Coffee/food closeby",
+    href: "/places?tag=study",
+  },
+  {
+    title: "Going out at Serrano 51",
+    subtitle: "Pre-game bars",
+    href: "/places?tag=serrano-51",
   },
 ];
 

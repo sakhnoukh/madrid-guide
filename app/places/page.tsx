@@ -18,7 +18,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
   const rawPlaces = await prisma.place.findMany({
     where: {
       published: true,
-      ...(category && category !== "all" ? { category: category as "coffee" | "restaurant" | "bar" } : {}),
+      ...(category && category !== "all" ? { category } : {}),
     },
     orderBy: { createdAt: "desc" },
   });
@@ -41,7 +41,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
 
       <PlacesClient
         places={places as any}
-        initialCategory={(category as "all" | "coffee" | "restaurant" | "bar") || "all"}
+        initialCategory={(category as "all" | "Café" | "Restaurant" | "Bar" | "Brunch" | "Club") || "all"}
         initialTag={tag || "all"}
         initialQuery={q || ""}
       />

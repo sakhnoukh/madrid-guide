@@ -7,7 +7,7 @@ type PlaceCardPlace = {
   id: string;
   name: string;
   neighborhood: string;
-  category: "coffee" | "restaurant" | "bar";
+  category: "Café" | "Restaurant" | "Bar" | "Brunch" | "Club";
   tags: string[];
   rating: number;
   shortBlurb: string;
@@ -33,9 +33,7 @@ export function PlaceCard({ place }: PlaceCardProps) {
 
           {/* Category */}
           <p className="mb-2 text-xs text-[#9A9A9A]">
-            {place.category === "coffee" && "Coffee"}
-            {place.category === "restaurant" && "Restaurant"}
-            {place.category === "bar" && "Bar"}
+            {place.category}
           </p>
 
           {/* Tags */}
