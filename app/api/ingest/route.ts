@@ -70,7 +70,7 @@ type IngestBody = {
   mapsUrl: string;
 
   // Optional overrides you can send from Telegram
-  category?: "coffee" | "restaurant" | "bar";
+  category?: string;
   neighborhood?: string;
   rating?: number;
   tags?: string[];
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
   const details = await getPlaceDetails(placeId);
 
   // 5) Choose defaults (your manual overrides win)
-  const category = normalizeCategory(body.category) ?? "coffee";
+  const category = normalizeCategory(body.category) ?? "Other";
   const neighborhood = body.neighborhood?.trim() || "Madrid";
   const rating = clampRating(body.rating) ?? 4.0;
 
@@ -171,7 +171,7 @@ export async function POST(req: Request) {
           lng: details.lng,
           googleMapsUri: details.googleMapsUri,
           googleMapsUrl: body.mapsUrl,
-          category: body.category ?? existing.category,
+          category: normalizeCategory(body.category) ?? existing.category,
           neighborhood: body.neighborhood ?? existing.neighborhood,
           rating: body.rating ?? existing.rating,
           tags: body.tags ? JSON.stringify(tags) : existing.tags,
