@@ -38,6 +38,17 @@ export default async function HomePage() {
     <main className="min-h-screen">
       <Hero />
 
+      {/* ABOUT */}
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
+        <div className="max-w-2xl">
+          <h2 className="font-serif text-2xl sm:text-3xl">About</h2>
+          <p className="mt-4 text-[#4B4B4B] leading-relaxed">
+            {/* TODO: Write your about text here */}
+            Your about text goes here. Tell visitors who you are and why you created this guide.
+          </p>
+        </div>
+      </section>
+
       {/* MOOD TILES */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
         <div className="mb-6 flex items-end justify-between gap-4">
