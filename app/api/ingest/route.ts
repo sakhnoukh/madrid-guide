@@ -23,13 +23,15 @@ function slugify(input: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-function normalizeCategory(input?: string): "coffee" | "restaurant" | "bar" | undefined {
+function normalizeCategory(input?: string): "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other" | undefined {
   if (!input) return undefined;
   const v = input.toLowerCase();
-  if (v === "coffee" || v === "cafe" || v === "café") return "coffee";
-  if (v === "restaurant" || v === "food") return "restaurant";
-  if (v === "bar" || v === "drinks") return "bar";
-  return undefined;
+  if (v === "coffee" || v === "cafe" || v === "café") return "Café";
+  if (v === "restaurant" || v === "food") return "Restaurant";
+  if (v === "bar" || v === "drinks") return "Bar";
+  if (v === "club" || v === "nightclub") return "Club";
+  if (v === "brunch" || v === "breakfast") return "Brunch";
+  return "Other";
 }
 
 function clampRating(input?: number): number | undefined {

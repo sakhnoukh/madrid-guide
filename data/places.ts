@@ -8,7 +8,7 @@ export type GoodForFlag =
   | "quick-stop"
   | "long-conversations";
 
-export type PlaceCategory = "coffee" | "restaurant" | "bar";
+export type PlaceCategory = "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
 
 export type PlaceTag =
   | "laptop-friendly"
@@ -38,7 +38,7 @@ export const PLACES: Place[] = [
     id: "hanso",
     name: "HanSo Café",
     neighborhood: "Malasaña",
-    category: "coffee",
+    category: "Café",
     tags: ["laptop-friendly", "solo"],
     rating: 4.5,
     shortBlurb: "Good flat white, busy on weekends. Nice for a solo work session.",
@@ -52,7 +52,7 @@ export const PLACES: Place[] = [
     id: "acid",
     name: "Acid Café",
     neighborhood: "Centro",
-    category: "coffee",
+    category: "Café",
     tags: ["quiet", "solo"],
     rating: 4.2,
     shortBlurb: "Calm vibe, solid pour-over. Great spot after a walk.",
@@ -66,7 +66,7 @@ export const PLACES: Place[] = [
     id: "sala-equis",
     name: "Sala Equis",
     neighborhood: "Centro",
-    category: "bar",
+    category: "Bar",
     tags: ["groups", "first-date"],
     rating: 4.0,
     shortBlurb: "Fun space, good for a casual drink and people-watching.",
@@ -80,7 +80,7 @@ export const PLACES: Place[] = [
     id: "terraza-xx",
     name: "Random Terraza",
     neighborhood: "La Latina",
-    category: "bar",
+    category: "Bar",
     tags: ["groups", "cheap"],
     rating: 3.6,
     shortBlurb:
@@ -95,7 +95,7 @@ export const PLACES: Place[] = [
     id: "bodega-yy",
     name: "Small Bodega",
     neighborhood: "Lavapiés",
-    category: "restaurant",
+    category: "Restaurant",
     tags: ["cheap", "quiet"],
     rating: 4.3,
     shortBlurb:

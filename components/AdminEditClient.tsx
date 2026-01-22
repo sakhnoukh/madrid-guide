@@ -199,9 +199,12 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
               <label className="mb-1 block text-sm font-medium">Category</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]">
-                <option value="coffee">Coffee</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="bar">Bar</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Bar">Bar</option>
+                <option value="Café">Café</option>
+                <option value="Club">Club</option>
+                <option value="Brunch">Brunch</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 

@@ -41,7 +41,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
 
       <PlacesClient
         places={places as any}
-        initialCategory={(category as "all" | "Café" | "Restaurant" | "Bar" | "Brunch" | "Club") || "all"}
+        initialCategory={(category as "all" | "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other") || "all"}
         initialTag={tag || "all"}
         initialQuery={q || ""}
       />

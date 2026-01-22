@@ -7,7 +7,7 @@ type PlaceDTO = {
   id: string;
   name: string;
   neighborhood: string;
-  category: "Café" | "Restaurant" | "Bar" | "Brunch" | "Club";
+  category: "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
   tags: string[];
   goodFor?: string[] | null;
   rating: number;
@@ -17,7 +17,7 @@ type PlaceDTO = {
   googleMapsUrl?: string | null;
 };
 
-type CategoryValue = "all" | "Café" | "Restaurant" | "Bar" | "Brunch" | "Club";
+type CategoryValue = "all" | "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
 
 type PlacesClientProps = {
   places: PlaceDTO[];
@@ -77,11 +77,12 @@ export function PlacesClient({
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
           {[
             { label: "All", value: "all" as CategoryValue },
-            { label: "Café", value: "Café" as CategoryValue },
             { label: "Restaurant", value: "Restaurant" as CategoryValue },
             { label: "Bar", value: "Bar" as CategoryValue },
-            { label: "Brunch", value: "Brunch" as CategoryValue },
+            { label: "Café", value: "Café" as CategoryValue },
             { label: "Club", value: "Club" as CategoryValue },
+            { label: "Brunch", value: "Brunch" as CategoryValue },
+            { label: "Other", value: "Other" as CategoryValue },
           ].map((item) => {
             const isActive = activeCategory === item.value;
             return (

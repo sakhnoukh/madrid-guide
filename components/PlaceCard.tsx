@@ -7,7 +7,7 @@ type PlaceCardPlace = {
   id: string;
   name: string;
   neighborhood: string;
-  category: "Café" | "Restaurant" | "Bar" | "Brunch" | "Club";
+  category: "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
   tags: string[];
   rating: number;
   shortBlurb: string;
