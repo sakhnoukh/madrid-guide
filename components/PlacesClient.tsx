@@ -38,8 +38,8 @@ export function PlacesClient({
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
-    places.forEach((p) => p.tags?.forEach((t) => s.add(t)));
-    return Array.from(s);
+    places.forEach((p) => p.tags?.forEach((t) => s.add(t.toLowerCase().trim())));
+    return Array.from(s).sort();
   }, [places]);
 
   const filtered = useMemo(() => {
@@ -47,7 +47,7 @@ export function PlacesClient({
 
     return places.filter((p) => {
       const categoryOk = activeCategory === "all" || p.category === activeCategory;
-      const tagOk = activeTag === "all" || p.tags?.includes(activeTag);
+      const tagOk = activeTag === "all" || p.tags?.some((t) => t.toLowerCase().trim() === activeTag);
 
       const queryOk =
         !q ||
