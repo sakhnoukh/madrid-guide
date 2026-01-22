@@ -43,8 +43,10 @@ export default async function HomePage() {
         <div className="max-w-2xl">
           <h2 className="font-serif text-2xl sm:text-3xl">About</h2>
           <p className="mt-4 text-[#4B4B4B] leading-relaxed">
-            {/* TODO: Write your about text here */}
-            Your about text goes here. Tell visitors who you are and why you created this guide.
+            I made this website mainly for me, cause my google maps pins were getting a bit too cluttered. 
+            I have not been to all the places on this website, these are mainly just places i save and would go to later at another point in time. 
+            I'll still add honest reviews for places that i did go to, if you disagree with a review, i probably don't care. 
+            I find places either from walking around and stumbling across something, or from my feed. 
           </p>
         </div>
       </section>

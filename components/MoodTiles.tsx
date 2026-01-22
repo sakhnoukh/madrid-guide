@@ -37,7 +37,7 @@ const tiles = [
     href: "/places?tag=study",
   },
   {
-    title: "Going out at Serrano 51",
+    title: "Going out at Serrano 41",
     subtitle: "Pre-game bars",
     href: "/places?tag=serrano-51",
   },
