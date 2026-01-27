@@ -8,8 +8,9 @@ export function Header() {
 
   useEffect(() => {
     const onScroll = () => {
-      // tweak this number to match hero height / when you want the switch
-      setScrolled(window.scrollY > 80);
+      // Switch when scrolled past ~90% of viewport height (end of hero)
+      const heroThreshold = window.innerHeight * 0.9;
+      setScrolled(window.scrollY > heroThreshold);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
