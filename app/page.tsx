@@ -50,6 +50,16 @@ export default async function HomePage() {
             I'll still add honest reviews for places that i did go to, if you disagree with a review, i probably don't care
             <br></br>
             I find places either from walking around and stumbling across something, or from my feed. 
+            <br></br>
+            Just so it's clear, I see the price levels as: 
+            <br></br>
+            €: 0-20
+            <br></br>
+            €€: 20-50
+            <br></br>
+            €€€: 50-100
+            <br></br>
+            €€€€: 100+
           </p>
         </div>
       </section>

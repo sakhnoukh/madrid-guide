@@ -4,16 +4,12 @@ export function Hero() {
       id="hero"
       className="relative flex min-h-[100vh] items-center justify-center overflow-hidden"
     >
-      {/* Background video */}
-      <video
+      {/* Background image */}
+      <img
+        src="/hero.jpg"
+        alt=""
         className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
-        loop
-        muted
-        playsInline
-      >
-        <source src="/videos/candle-placeholder.mp4" type="video/mp4" />
-      </video>
+      />
 
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/50" />
