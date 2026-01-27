@@ -39,28 +39,40 @@ export default async function HomePage() {
       <Hero />
 
       {/* ABOUT */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
-        <div className="max-w-2xl">
-          <h2 className="font-serif text-2xl sm:text-3xl">About</h2>
-          <p className="mt-4 text-[#4B4B4B] leading-relaxed">
-            I made this website mainly for me, cause my google maps pins were getting a bit too cluttered. 
-            <br></br>
-            I have not been to all the places on this website, these are mainly just places i save and would go to later at another point in time. 
-            <br></br>
-            I'll still add honest reviews for places that i did go to, if you disagree with a review, i probably don't care
-            <br></br>
-            I find places either from walking around and stumbling across something, or from my feed. 
-            <br></br>
-            Just so it's clear, I see the price levels as: 
-            <br></br>
-            €: 0-20
-            <br></br>
-            €€: 20-50
-            <br></br>
-            €€€: 50-100
-            <br></br>
-            €€€€: 100+
-          </p>
+      <section id="about" className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
+          {/* Text */}
+          <div className="lg:flex-1">
+            <h2 className="font-serif text-2xl sm:text-3xl">About</h2>
+            <p className="mt-4 text-[#4B4B4B] leading-relaxed">
+              I made this website mainly for me, cause my google maps pins were getting a bit too cluttered. 
+              <br /><br />
+              I have not been to all the places on this website, these are mainly just places i save and would go to later at another point in time. 
+              <br /><br />
+              I&apos;ll still add honest reviews for places that i did go to, if you disagree with a review, i probably don&apos;t care
+              <br /><br />
+              I find places either from walking around and stumbling across something, or from my feed. 
+              <br /><br />
+              Just so it&apos;s clear, I see the price levels as: 
+              <br />
+              €: 0-20
+              <br />
+              €€: 20-50
+              <br />
+              €€€: 50-100
+              <br />
+              €€€€: 100+
+            </p>
+          </div>
+
+          {/* Map image */}
+          <div className="lg:w-80 xl:w-96 flex-shrink-0">
+            <img
+              src="/maps.png"
+              alt="My cluttered Google Maps pins"
+              className="w-full rounded-2xl shadow-lg"
+            />
+          </div>
         </div>
       </section>
 
