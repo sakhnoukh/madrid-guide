@@ -4,7 +4,6 @@ import { PlaceCard } from "@/components/PlaceCard";
 import { Hero } from "@/components/Hero";
 import { MoodTiles } from "@/components/MoodTiles";
 import { CollectionCard } from "@/components/CollectionCard";
-import { COLLECTIONS } from "@/data/collections";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +18,11 @@ export default async function HomePage() {
     where: { published: true },
     orderBy: { createdAt: "desc" },
     take: 6,
+  });
+
+  const collections = await prisma.collection.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 4,
   });
 
   // Parse JSON fields
@@ -107,13 +111,19 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {COLLECTIONS.map((c) => (
-            <Link key={c.id} href={`/collections/${c.id}`}>
-              <CollectionCard collection={c} />
-            </Link>
-          ))}
-        </div>
+        {collections.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
+            No collections yet. Create some in /admin.
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {collections.map((c) => (
+              <Link key={c.id} href={`/collections/${c.slug}`}>
+                <CollectionCard collection={c} />
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* FEATURED PICKS */}

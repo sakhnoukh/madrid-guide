@@ -40,4 +40,29 @@ model Place {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Collections relationship
+  collections   CollectionPlace[]
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Places in this collection
+  places      CollectionPlace[]
+}
+
+model CollectionPlace {
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String
+  place        Place      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  placeId      String
+  addedAt      DateTime   @default(now())
+
+  @@id([collectionId, placeId])
 }
