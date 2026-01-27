@@ -23,37 +23,34 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="bg-[#F7F3EC] font-sans text-[#4B4B4B]">
         {/* NAVBAR (shared across all pages) */}
-        <header className="fixed left-0 right-0 top-0 z-20 bg-gradient-to-b from-[#0C0C0C]/60 to-transparent backdrop-blur">
-          <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-            <Link href="/" className="font-serif text-lg tracking-wide text-[#F7F3EC]">
-              Sami&apos;s Guide
-            </Link>
+        <header className="fixed top-0 z-50 w-full">
+          {/* Glass bar */}
+          <div className="bg-white/10 backdrop-blur-xl">
+            <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+              <Link href="/" className="font-serif text-sm tracking-wide text-white/90">
+                Sami&apos;s Guide
+              </Link>
 
-            <div className="hidden gap-6 text-sm text-[#F7F3EC] md:flex">
-              <Link
-                href="/places"
-                className="hover:text-[#F0E1D7] transition-colors"
-              >
-                Places
-              </Link>
-              <Link
-                href="/collections"
-                className="hover:text-[#F0E1D7] transition-colors"
-              >
-                Collections
-              </Link>
-              <Link
-                href="/#about"
-                className="hover:text-[#F0E1D7] transition-colors"
-              >
-                About
-              </Link>
-            </div>
-          </nav>
+              <div className="flex items-center gap-6 text-sm text-white/80">
+                <Link href="/places" className="hover:text-white transition">
+                  Places
+                </Link>
+                <Link href="/collections" className="hover:text-white transition">
+                  Collections
+                </Link>
+                <Link href="/#about" className="hover:text-white transition">
+                  About
+                </Link>
+              </div>
+            </nav>
+          </div>
+
+          {/* Soft fade (replaces hard border) */}
+          <div className="h-6 bg-gradient-to-b from-white/10 to-transparent" />
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="pt-16">{children}</main>
+        <main className="pt-20">{children}</main>
       </body>
     </html>
   );

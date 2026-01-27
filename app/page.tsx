@@ -44,8 +44,11 @@ export default async function HomePage() {
           <h2 className="font-serif text-2xl sm:text-3xl">About</h2>
           <p className="mt-4 text-[#4B4B4B] leading-relaxed">
             I made this website mainly for me, cause my google maps pins were getting a bit too cluttered. 
+            <br></br>
             I have not been to all the places on this website, these are mainly just places i save and would go to later at another point in time. 
-            I'll still add honest reviews for places that i did go to, if you disagree with a review, i probably don't care. 
+            <br></br>
+            I'll still add honest reviews for places that i did go to, if you disagree with a review, i probably don't care
+            <br></br>
             I find places either from walking around and stumbling across something, or from my feed. 
           </p>
         </div>
