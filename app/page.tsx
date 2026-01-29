@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PlaceCard } from "@/components/PlaceCard";
 import { Hero } from "@/components/Hero";
-import { MoodTiles } from "@/components/MoodTiles";
 import { CollectionCard } from "@/components/CollectionCard";
 
 export const dynamic = "force-dynamic";
@@ -78,26 +77,6 @@ export default async function HomePage() {
             />
           </div>
         </div>
-      </section>
-
-      {/* MOOD TILES */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-serif text-2xl sm:text-3xl">Start here</h2>
-            <p className="mt-1 text-sm text-[#9A9A9A]">
-              Browse by mood. No overthinking.
-            </p>
-          </div>
-          <Link
-            href="/places"
-            className="text-sm text-[#D46A4C] underline-offset-2 hover:underline"
-          >
-            View all →
-          </Link>
-        </div>
-
-        <MoodTiles />
       </section>
 
       {/* COLLECTIONS */}

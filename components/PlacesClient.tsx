@@ -18,6 +18,7 @@ type PlaceDTO = {
 };
 
 type CategoryValue = "all" | "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
+type RatingFilter = "all" | "4+" | "4.5+";
 
 type PlacesClientProps = {
   places: PlaceDTO[];
@@ -34,11 +35,19 @@ export function PlacesClient({
 }: PlacesClientProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryValue>(initialCategory);
   const [activeTag, setActiveTag] = useState<string>(initialTag);
+  const [activeNeighborhood, setActiveNeighborhood] = useState<string>("all");
+  const [activeRating, setActiveRating] = useState<RatingFilter>("all");
   const [query, setQuery] = useState(initialQuery);
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
     places.forEach((p) => p.tags?.forEach((t) => s.add(t.toLowerCase().trim())));
+    return Array.from(s).sort();
+  }, [places]);
+
+  const allNeighborhoods = useMemo(() => {
+    const s = new Set<string>();
+    places.forEach((p) => s.add(p.neighborhood));
     return Array.from(s).sort();
   }, [places]);
 
@@ -48,6 +57,11 @@ export function PlacesClient({
     return places.filter((p) => {
       const categoryOk = activeCategory === "all" || p.category === activeCategory;
       const tagOk = activeTag === "all" || p.tags?.some((t) => t.toLowerCase().trim() === activeTag);
+      const neighborhoodOk = activeNeighborhood === "all" || p.neighborhood === activeNeighborhood;
+      const ratingOk =
+        activeRating === "all" ||
+        (activeRating === "4+" && p.rating >= 4) ||
+        (activeRating === "4.5+" && p.rating >= 4.5);
 
       const queryOk =
         !q ||
@@ -55,9 +69,9 @@ export function PlacesClient({
         p.neighborhood.toLowerCase().includes(q) ||
         (p.tags || []).some((t) => t.toLowerCase().includes(q));
 
-      return categoryOk && tagOk && queryOk;
+      return categoryOk && tagOk && neighborhoodOk && ratingOk && queryOk;
     });
-  }, [places, activeCategory, activeTag, query]);
+  }, [places, activeCategory, activeTag, activeNeighborhood, activeRating, query]);
 
   return (
     <>
@@ -93,6 +107,65 @@ export function PlacesClient({
                   "rounded-full border px-3 py-1 transition",
                   isActive
                     ? "border-[#D46A4C] bg-[#D46A4C] text-white"
+                    : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
+                ].join(" ")}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Neighborhood */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
+          <span className="mr-1 text-[#9A9A9A]">Neighborhood:</span>
+          <button
+            onClick={() => setActiveNeighborhood("all")}
+            className={[
+              "rounded-full border px-3 py-1 transition",
+              activeNeighborhood === "all"
+                ? "border-[#1E3A5F] bg-[#1E3A5F] text-white"
+                : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
+            ].join(" ")}
+          >
+            All
+          </button>
+          {allNeighborhoods.map((hood) => {
+            const isActive = activeNeighborhood === hood;
+            return (
+              <button
+                key={hood}
+                onClick={() => setActiveNeighborhood(hood)}
+                className={[
+                  "rounded-full border px-3 py-1 transition",
+                  isActive
+                    ? "border-[#1E3A5F] bg-[#1E3A5F] text-white"
+                    : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
+                ].join(" ")}
+              >
+                {hood}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Rating */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
+          <span className="mr-1 text-[#9A9A9A]">Rating:</span>
+          {[
+            { label: "All", value: "all" as RatingFilter },
+            { label: "4+", value: "4+" as RatingFilter },
+            { label: "4.5+", value: "4.5+" as RatingFilter },
+          ].map((item) => {
+            const isActive = activeRating === item.value;
+            return (
+              <button
+                key={item.value}
+                onClick={() => setActiveRating(item.value)}
+                className={[
+                  "rounded-full border px-3 py-1 transition",
+                  isActive
+                    ? "border-[#1E3A5F] bg-[#1E3A5F] text-white"
                     : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
                 ].join(" ")}
               >

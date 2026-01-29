@@ -1,21 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function Header() {
-  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+  const isHomepage = pathname === "/";
+  const [scrolled, setScrolled] = useState(!isHomepage);
 
   useEffect(() => {
+    // On non-homepage, always show scrolled state
+    if (!isHomepage) {
+      setScrolled(true);
+      return;
+    }
+
     const onScroll = () => {
-      // Switch when scrolled past ~90% of viewport height (end of hero)
-      const heroThreshold = window.innerHeight * 0.9;
+      // Switch when scrolled past ~95% of viewport height (end of hero)
+      const heroThreshold = window.innerHeight * 0.95;
       setScrolled(window.scrollY > heroThreshold);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isHomepage]);
 
   return (
     <header className="fixed top-0 z-50 w-full">
