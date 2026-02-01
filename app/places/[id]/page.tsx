@@ -56,10 +56,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       {/* Header */}
       <header className="mb-6">
         <p className="mb-1 text-xs uppercase tracking-[0.2em] text-[#9A9A9A]">
-          {rawPlace.neighborhood} ·{" "}
-          {rawPlace.category === "coffee" && "Coffee"}
-          {rawPlace.category === "restaurant" && "Restaurant"}
-          {rawPlace.category === "bar" && "Bar"}
+          {rawPlace.neighborhood} · {rawPlace.category}
           {priceText && ` · ${priceText}`}
         </p>
         <h1 className="mb-3 font-serif text-3xl sm:text-4xl">
@@ -84,11 +81,7 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
       <div className="grid gap-10 md:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)]">
         {/* LEFT: review text */}
         <section className="space-y-4 text-sm sm:text-base text-[#4B4B4B]">
-          <p className="font-medium">{rawPlace.shortBlurb}</p>
-          <p className="text-[#4B4B4B]">
-            {rawPlace.longReview ??
-              "Longer review coming soon. For now: it's on this site, which already means I'd happily bring a friend here."}
-          </p>
+          <p>{rawPlace.review}</p>
         </section>
 
         {/* RIGHT: info card */}

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
+type LinkItem = { label: string; url: string };
+
 type PlaceDTO = {
   id: string;
   name: string;
@@ -11,10 +13,11 @@ type PlaceDTO = {
   tags: string[];
   goodFor: string[];
   rating: number;
-  shortBlurb: string;
-  longReview?: string | null;
+  review: string;
   priceLevel?: number | null;
   googleMapsUrl?: string | null;
+  links?: LinkItem[] | null;
+  media?: string[] | null;
   published?: boolean;
   featured?: boolean;
 };
@@ -29,9 +32,10 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
   const [priceLevel, setPriceLevel] = useState<number | "">(place.priceLevel ?? "");
   const [tags, setTags] = useState(place.tags.join(", "));
   const [goodFor, setGoodFor] = useState(place.goodFor.join(", "));
-  const [shortBlurb, setShortBlurb] = useState(place.shortBlurb);
-  const [longReview, setLongReview] = useState(place.longReview ?? "");
+  const [review, setReview] = useState(place.review);
   const [googleMapsUrl, setGoogleMapsUrl] = useState(place.googleMapsUrl ?? "");
+  const [links, setLinks] = useState<LinkItem[]>(place.links ?? []);
+  const [media, setMedia] = useState<string[]>(place.media ?? []);
 
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,9 +56,10 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
       priceLevel: priceLevel === "" ? null : Number(priceLevel),
       tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
       goodFor: goodFor.split(",").map((g) => g.trim()).filter(Boolean),
-      shortBlurb,
-      longReview,
+      review,
       googleMapsUrl: googleMapsUrl || null,
+      links,
+      media,
     };
 
     const res = await fetch(`/api/places/${place.id}`, {
@@ -236,15 +241,9 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">Short blurb</label>
-              <textarea value={shortBlurb} onChange={(e) => setShortBlurb(e.target.value)}
-                className="min-h-[90px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]" />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">Long review</label>
-              <textarea value={longReview} onChange={(e) => setLongReview(e.target.value)}
-                className="min-h-[140px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]" />
+              <label className="mb-1 block text-sm font-medium">Review</label>
+              <textarea value={review} onChange={(e) => setReview(e.target.value)}
+                className="min-h-[120px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]" />
             </div>
 
             <div className="sm:col-span-2">
@@ -252,6 +251,93 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
               <input value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)}
                 className="w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]" />
             </div>
+          </div>
+        </div>
+
+        {/* LINKS */}
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <h3 className="mb-3 font-medium">Related Links</h3>
+          <div className="space-y-2">
+            {links.map((link, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={link.label}
+                  onChange={(e) => {
+                    const newLinks = [...links];
+                    newLinks[i] = { ...newLinks[i], label: e.target.value };
+                    setLinks(newLinks);
+                  }}
+                  placeholder="Label (e.g. Website)"
+                  className="w-1/3 rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
+                />
+                <input
+                  value={link.url}
+                  onChange={(e) => {
+                    const newLinks = [...links];
+                    newLinks[i] = { ...newLinks[i], url: e.target.value };
+                    setLinks(newLinks);
+                  }}
+                  placeholder="https://..."
+                  className="flex-1 rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLinks(links.filter((_, j) => j !== i))}
+                  className="px-3 text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLinks([...links, { label: "", url: "" }])}
+              className="text-sm text-[#D46A4C] hover:underline"
+            >
+              + Add link
+            </button>
+          </div>
+        </div>
+
+        {/* MEDIA */}
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <h3 className="mb-3 font-medium">Media (Photos/Videos)</h3>
+          <div className="space-y-2">
+            {media.map((url, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={url}
+                  onChange={(e) => {
+                    const newMedia = [...media];
+                    newMedia[i] = e.target.value;
+                    setMedia(newMedia);
+                  }}
+                  placeholder="Image or video URL..."
+                  className="flex-1 rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMedia(media.filter((_, j) => j !== i))}
+                  className="px-3 text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {media.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {media.filter(Boolean).map((url, i) => (
+                  <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMedia([...media, ""])}
+              className="text-sm text-[#D46A4C] hover:underline"
+            >
+              + Add media URL
+            </button>
           </div>
         </div>
 

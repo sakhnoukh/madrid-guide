@@ -1,18 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { isValidAdminSecret } from "@/lib/adminAuth";
 
+type LinkItem = { label: string; url: string };
+
 type UpdatePlaceBody = {
   adminSecret?: string;
   name?: string;
   neighborhood?: string;
-  category?: "coffee" | "restaurant" | "bar";
+  category?: string;
   tags?: string[];
   goodFor?: string[];
   rating?: number;
-  shortBlurb?: string;
-  longReview?: string;
+  review?: string;
   priceLevel?: number | null;
   googleMapsUrl?: string | null;
+  links?: LinkItem[];
+  media?: string[];
 };
 
 export async function GET(
@@ -33,6 +36,8 @@ export async function GET(
     ...place,
     tags: JSON.parse(place.tags),
     goodFor: place.goodFor ? JSON.parse(place.goodFor) : null,
+    links: place.links ? JSON.parse(place.links) : null,
+    media: place.media ? JSON.parse(place.media) : null,
   };
 
   return Response.json(parsed);
@@ -57,10 +62,11 @@ export async function PATCH(
   if (body.tags !== undefined) data.tags = JSON.stringify(body.tags.map((t) => t.trim()).filter(Boolean));
   if (body.goodFor !== undefined) data.goodFor = JSON.stringify(body.goodFor.map((g) => g.trim()).filter(Boolean));
   if (body.rating !== undefined) data.rating = body.rating;
-  if (body.shortBlurb !== undefined) data.shortBlurb = body.shortBlurb.trim();
-  if (body.longReview !== undefined) data.longReview = body.longReview.trim();
+  if (body.review !== undefined) data.review = body.review.trim();
   if (body.priceLevel !== undefined) data.priceLevel = body.priceLevel;
   if (body.googleMapsUrl !== undefined) data.googleMapsUrl = body.googleMapsUrl;
+  if (body.links !== undefined) data.links = JSON.stringify(body.links.filter((l) => l.label && l.url));
+  if (body.media !== undefined) data.media = JSON.stringify(body.media.filter(Boolean));
 
   const updated = await prisma.place.update({
     where: { id },

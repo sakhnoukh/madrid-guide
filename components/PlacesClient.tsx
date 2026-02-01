@@ -11,8 +11,7 @@ type PlaceDTO = {
   tags: string[];
   goodFor?: string[] | null;
   rating: number;
-  shortBlurb: string;
-  longReview?: string | null;
+  review: string;
   priceLevel?: number | null;
   googleMapsUrl?: string | null;
 };

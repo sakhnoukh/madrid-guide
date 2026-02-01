@@ -18,6 +18,8 @@ export default async function AdminEditPage({ params }: PageProps) {
     ...place,
     tags: JSON.parse(place.tags) as string[],
     goodFor: place.goodFor ? (JSON.parse(place.goodFor) as string[]) : [],
+    links: place.links ? JSON.parse(place.links) : [],
+    media: place.media ? JSON.parse(place.media) : [],
   };
 
   return <AdminEditClient place={parsed} />;

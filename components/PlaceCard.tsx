@@ -10,7 +10,7 @@ type PlaceCardPlace = {
   category: "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
   tags: string[];
   rating: number;
-  shortBlurb: string;
+  review: string;
   googleMapsUrl?: string | null;
 };
 
@@ -48,8 +48,8 @@ export function PlaceCard({ place }: PlaceCardProps) {
             ))}
           </div>
 
-          {/* Short blurb */}
-          <p className="text-sm text-[#4B4B4B]">{place.shortBlurb}</p>
+          {/* Review */}
+          <p className="text-sm text-[#4B4B4B]">{place.review}</p>
         </div>
       </Link>
 

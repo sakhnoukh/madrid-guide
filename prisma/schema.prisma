@@ -18,10 +18,15 @@ model Place {
   tags          String   // JSON array stored as string
   goodFor       String?  // JSON array stored as string (optional)
   rating        Float
-  shortBlurb    String
-  longReview    String?
+  review        String   // renamed from shortBlurb
   priceLevel    Int?
   googleMapsUrl String?
+
+  // Related links (JSON array: [{label, url}])
+  links         String?
+
+  // Media URLs (JSON array of URLs for photos/videos)
+  media         String?
 
   // Enrichment fields from Google Places API
   googlePlaceId String?  @unique

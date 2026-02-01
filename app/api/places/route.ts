@@ -7,15 +7,14 @@ type CreatePlaceBody = {
   id: string;
   name: string;
   neighborhood: string;
-  category: "coffee" | "restaurant" | "bar";
+  category: string;
 
   tags?: string[];
   goodFor?: string[];
 
   rating: number;
-  shortBlurb: string;
+  review: string;
 
-  longReview?: string;
   priceLevel?: number;
   googleMapsUrl?: string;
 };
@@ -50,14 +49,15 @@ export async function POST(req: Request) {
   }
 
   // Basic validation
-  const required = ["id", "name", "neighborhood", "category", "rating", "shortBlurb"] as const;
+  const required = ["id", "name", "neighborhood", "category", "rating", "review"] as const;
   for (const key of required) {
     if ((body as any)[key] === undefined || (body as any)[key] === "") {
       return new Response(`Missing field: ${key}`, { status: 400 });
     }
   }
 
-  if (!["coffee", "restaurant", "bar"].includes(body.category)) {
+  const validCategories = ["Restaurant", "Bar", "Café", "Club", "Brunch", "Other"];
+  if (!validCategories.includes(body.category)) {
     return new Response("Invalid category", { status: 400 });
   }
 
@@ -94,8 +94,7 @@ export async function POST(req: Request) {
         tags: JSON.stringify(tags),
         goodFor: goodFor.length ? JSON.stringify(goodFor) : undefined,
         rating: body.rating,
-        shortBlurb: body.shortBlurb.trim(),
-        longReview: body.longReview?.trim() || undefined,
+        review: body.review.trim(),
         priceLevel: body.priceLevel ?? undefined,
         googleMapsUrl: body.googleMapsUrl?.trim() || undefined,
       },

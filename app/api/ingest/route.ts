@@ -75,8 +75,7 @@ type IngestBody = {
   rating?: number;
   tags?: string[];
   goodFor?: string[];
-  shortBlurb?: string;
-  longReview?: string;
+  review?: string;
 };
 
 export async function POST(req: Request) {
@@ -144,8 +143,8 @@ export async function POST(req: Request) {
   const tags = normalizeTags(body.tags) ?? [];
   const goodFor = normalizeGoodFor(body.goodFor) ?? [];
 
-  const shortBlurb =
-    body.shortBlurb?.trim() ||
+  const review =
+    body.review?.trim() ||
     `Added from Google Maps. I'll write a real note later.`;
 
   // Create a slug (id) based on name + neighborhood
@@ -176,8 +175,7 @@ export async function POST(req: Request) {
           rating: body.rating ?? existing.rating,
           tags: body.tags ? JSON.stringify(tags) : existing.tags,
           goodFor: body.goodFor ? JSON.stringify(goodFor) : existing.goodFor,
-          shortBlurb: body.shortBlurb ? shortBlurb : existing.shortBlurb,
-          longReview: body.longReview ? body.longReview : existing.longReview,
+          review: body.review ? review : existing.review,
           priceLevel:
             typeof details.priceLevel === "number" ? details.priceLevel : existing.priceLevel,
           primaryPhotoName: details.primaryPhotoName ?? existing.primaryPhotoName,
@@ -193,8 +191,7 @@ export async function POST(req: Request) {
           rating,
           tags: JSON.stringify(tags),
           goodFor: goodFor.length ? JSON.stringify(goodFor) : undefined,
-          shortBlurb,
-          longReview: body.longReview?.trim() || undefined,
+          review,
           priceLevel: typeof details.priceLevel === "number" ? details.priceLevel : undefined,
           googleMapsUrl: body.mapsUrl,
           googlePlaceId: placeId,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Category = "coffee" | "restaurant" | "bar";
+type Category = "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
 
 function slugify(input: string) {
   return input
@@ -19,13 +19,12 @@ export default function AdminAddPlacePage() {
   const [name, setName] = useState("");
   const [id, setId] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
-  const [category, setCategory] = useState<Category>("coffee");
+  const [category, setCategory] = useState<Category>("Café");
   const [rating, setRating] = useState(4.0);
   const [priceLevel, setPriceLevel] = useState<number | "">("");
   const [tags, setTags] = useState(""); // comma-separated
   const [goodFor, setGoodFor] = useState(""); // comma-separated
-  const [shortBlurb, setShortBlurb] = useState("");
-  const [longReview, setLongReview] = useState("");
+  const [review, setReview] = useState("");
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
 
   const [status, setStatus] = useState<string | null>(null);
@@ -57,8 +56,7 @@ export default function AdminAddPlacePage() {
         .split(",")
         .map((g) => g.trim())
         .filter(Boolean),
-      shortBlurb,
-      longReview: longReview || undefined,
+      review,
       googleMapsUrl: googleMapsUrl || undefined,
     };
 
@@ -79,13 +77,12 @@ export default function AdminAddPlacePage() {
         setName("");
         setId("");
         setNeighborhood("");
-        setCategory("coffee");
+        setCategory("Café");
         setRating(4.0);
         setPriceLevel("");
         setTags("");
         setGoodFor("");
-        setShortBlurb("");
-        setLongReview("");
+        setReview("");
         setGoogleMapsUrl("");
       }
     } catch (err: any) {
@@ -176,9 +173,12 @@ export default function AdminAddPlacePage() {
                 onChange={(e) => setCategory(e.target.value as Category)}
                 className="w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
               >
-                <option value="coffee">Coffee</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="bar">Bar</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Bar">Bar</option>
+                <option value="Café">Café</option>
+                <option value="Club">Club</option>
+                <option value="Brunch">Brunch</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
@@ -243,23 +243,13 @@ export default function AdminAddPlacePage() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">Short blurb</label>
+              <label className="mb-1 block text-sm font-medium">Review</label>
               <textarea
-                value={shortBlurb}
-                onChange={(e) => setShortBlurb(e.target.value)}
-                className="min-h-[80px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
-                placeholder="One punchy sentence you'd say to a friend."
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                className="min-h-[120px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
+                placeholder="Your review of this place."
                 required
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">Long review (optional)</label>
-              <textarea
-                value={longReview}
-                onChange={(e) => setLongReview(e.target.value)}
-                className="min-h-[140px] w-full rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
-                placeholder="A short paragraph or two."
               />
             </div>
 
