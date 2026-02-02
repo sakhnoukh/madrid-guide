@@ -79,25 +79,6 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
         </div>
       )}
 
-      {/* Additional Media Gallery */}
-      {media.length > 0 && (
-        <div className="mb-8">
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {media.map((url, i) => (
-              <div key={i} className="flex-shrink-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={`${rawPlace.name} photo ${i + 1}`}
-                  className="h-40 w-40 object-cover sm:h-48 sm:w-48"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Main two-column layout */}
       <div className="grid gap-10 md:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)]">
         {/* LEFT: review text */}
@@ -189,14 +170,33 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
             )}
           </div>
 
-          {/* Future slot: hours / notes */}
-          <div className="rounded-2xl border border-[#D8C7B8]/60 bg-[#FDF8F3] p-4 text-xs text-[#9A9A9A]">
-            <p>
-              Later this box can show opening hours, a small note like
-              &quot;better in the morning&quot; or &quot;avoid Sunday
-              evenings&quot;, and maybe a photo.
-            </p>
-          </div>
+          {/* Media Gallery */}
+          {media.length > 0 && (
+            <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9A9A]">
+                Photos
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                {media.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group overflow-hidden rounded-lg bg-[#F5EDE6] ring-1 ring-black/5 transition hover:ring-[#D46A4C]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={`${rawPlace.name} photo ${i + 1}`}
+                      className="h-24 w-full object-cover transition group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </div>
