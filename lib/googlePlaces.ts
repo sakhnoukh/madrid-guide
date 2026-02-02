@@ -21,8 +21,13 @@ function mustEnv(name: string) {
 
 export async function expandGoogleMapsUrl(url: string): Promise<string> {
   // Handles maps.app.goo.gl short links by following redirects.
-  const res = await fetch(url, { redirect: "follow" });
-  return res.url || url;
+  try {
+    const res = await fetch(url, { redirect: "follow" });
+    return res.url || url;
+  } catch (err) {
+    console.log("[expandGoogleMapsUrl] fetch failed, returning original URL:", err);
+    return url;
+  }
 }
 
 export function extractPlaceIdFromUrl(url: string): string | null {

@@ -34,6 +34,8 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
   // Parse JSON strings
   const tags = JSON.parse(rawPlace.tags) as string[];
   const goodFor = rawPlace.goodFor ? (JSON.parse(rawPlace.goodFor) as string[]) : [];
+  const links = rawPlace.links ? (JSON.parse(rawPlace.links) as { label: string; url: string }[]) : [];
+  const media = rawPlace.media ? (JSON.parse(rawPlace.media) as string[]) : [];
 
   const priceText =
     rawPlace.priceLevel !== null && rawPlace.priceLevel !== undefined
@@ -74,6 +76,25 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
             className="h-[260px] w-full object-cover sm:h-[340px]"
             loading="lazy"
           />
+        </div>
+      )}
+
+      {/* Additional Media Gallery */}
+      {media.length > 0 && (
+        <div className="mb-8">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {media.map((url, i) => (
+              <div key={i} className="flex-shrink-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`${rawPlace.name} photo ${i + 1}`}
+                  className="h-40 w-40 object-cover sm:h-48 sm:w-48"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -147,6 +168,23 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
                 >
                   Open in Google Maps →
                 </a>
+              </div>
+            )}
+
+            {/* Related links */}
+            {links.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {links.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-[#D8C7B8] bg-[#FDF8F3] px-5 py-2 text-sm font-medium text-[#4B4B4B] shadow-sm transition hover:bg-[#F1E4D7]"
+                  >
+                    {link.label || "Go to Website"} →
+                  </a>
+                ))}
               </div>
             )}
           </div>
