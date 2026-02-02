@@ -17,7 +17,7 @@ type PlaceDTO = {
 };
 
 type CategoryValue = "all" | "Restaurant" | "Bar" | "Café" | "Club" | "Brunch" | "Other";
-type RatingFilter = "all" | "4+" | "4.5+";
+type RatingSort = "none" | "asc" | "desc";
 
 type PlacesClientProps = {
   places: PlaceDTO[];
@@ -35,7 +35,7 @@ export function PlacesClient({
   const [activeCategory, setActiveCategory] = useState<CategoryValue>(initialCategory);
   const [activeTag, setActiveTag] = useState<string>(initialTag);
   const [activeNeighborhood, setActiveNeighborhood] = useState<string>("all");
-  const [activeRating, setActiveRating] = useState<RatingFilter>("all");
+  const [ratingSort, setRatingSort] = useState<RatingSort>("none");
   const [query, setQuery] = useState(initialQuery);
 
   const allTags = useMemo(() => {
@@ -53,14 +53,10 @@ export function PlacesClient({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return places.filter((p) => {
+    const result = places.filter((p) => {
       const categoryOk = activeCategory === "all" || p.category === activeCategory;
       const tagOk = activeTag === "all" || p.tags?.some((t) => t.toLowerCase().trim() === activeTag);
       const neighborhoodOk = activeNeighborhood === "all" || p.neighborhood === activeNeighborhood;
-      const ratingOk =
-        activeRating === "all" ||
-        (activeRating === "4+" && p.rating >= 4) ||
-        (activeRating === "4.5+" && p.rating >= 4.5);
 
       const queryOk =
         !q ||
@@ -68,9 +64,18 @@ export function PlacesClient({
         p.neighborhood.toLowerCase().includes(q) ||
         (p.tags || []).some((t) => t.toLowerCase().includes(q));
 
-      return categoryOk && tagOk && neighborhoodOk && ratingOk && queryOk;
+      return categoryOk && tagOk && neighborhoodOk && queryOk;
     });
-  }, [places, activeCategory, activeTag, activeNeighborhood, activeRating, query]);
+
+    // Sort by rating if enabled
+    if (ratingSort === "asc") {
+      result.sort((a, b) => a.rating - b.rating);
+    } else if (ratingSort === "desc") {
+      result.sort((a, b) => b.rating - a.rating);
+    }
+
+    return result;
+  }, [places, activeCategory, activeTag, activeNeighborhood, ratingSort, query]);
 
   return (
     <>
@@ -148,32 +153,6 @@ export function PlacesClient({
           })}
         </div>
 
-        {/* Rating */}
-        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
-          <span className="mr-1 text-[#9A9A9A]">Rating:</span>
-          {[
-            { label: "All", value: "all" as RatingFilter },
-            { label: "4+", value: "4+" as RatingFilter },
-            { label: "4.5+", value: "4.5+" as RatingFilter },
-          ].map((item) => {
-            const isActive = activeRating === item.value;
-            return (
-              <button
-                key={item.value}
-                onClick={() => setActiveRating(item.value)}
-                className={[
-                  "rounded-full border px-3 py-1 transition",
-                  isActive
-                    ? "border-[#1E3A5F] bg-[#1E3A5F] text-white"
-                    : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
-                ].join(" ")}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
           <span className="mr-1 text-[#9A9A9A]">Tags:</span>
@@ -207,6 +186,31 @@ export function PlacesClient({
           })}
         </div>
       </section>
+
+      {/* GRID HEADER with sort toggle */}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-[#9A9A9A]">
+          {filtered.length} {filtered.length === 1 ? "place" : "places"}
+        </p>
+        <button
+          onClick={() => {
+            if (ratingSort === "none") setRatingSort("desc");
+            else if (ratingSort === "desc") setRatingSort("asc");
+            else setRatingSort("none");
+          }}
+          className={[
+            "flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition",
+            ratingSort !== "none"
+              ? "border-[#D46A4C] bg-[#D46A4C] text-white"
+              : "border-[#D8C7B8] bg-[#FDF8F3] text-[#4B4B4B] hover:bg-[#F1E4D7]",
+          ].join(" ")}
+        >
+          <span>Rating</span>
+          {ratingSort === "desc" && <span>↓</span>}
+          {ratingSort === "asc" && <span>↑</span>}
+          {ratingSort === "none" && <span>–</span>}
+        </button>
+      </div>
 
       {/* GRID */}
       {filtered.length === 0 ? (

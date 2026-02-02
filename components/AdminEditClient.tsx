@@ -302,42 +302,64 @@ export function AdminEditClient({ place }: { place: PlaceDTO }) {
         {/* MEDIA */}
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
           <h3 className="mb-3 font-medium">Media (Photos/Videos)</h3>
-          <div className="space-y-2">
-            {media.map((url, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={url}
-                  onChange={(e) => {
-                    const newMedia = [...media];
-                    newMedia[i] = e.target.value;
-                    setMedia(newMedia);
-                  }}
-                  placeholder="Image or video URL..."
-                  className="flex-1 rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-3 py-2 text-sm outline-none focus:border-[#D46A4C]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setMedia(media.filter((_, j) => j !== i))}
-                  className="px-3 text-red-500 hover:text-red-700"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {/* Existing media */}
             {media.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {media.filter(Boolean).map((url, i) => (
-                  <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                  <div key={i} className="relative group">
+                    <img src={url} alt="" className="h-24 w-24 rounded-lg object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setMedia(media.filter((_, j) => j !== i))}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => setMedia([...media, ""])}
-              className="text-sm text-[#D46A4C] hover:underline"
-            >
-              + Add media URL
-            </button>
+            {/* Upload input */}
+            <div>
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!adminSecret) {
+                    setStatus("Enter admin secret first");
+                    return;
+                  }
+                  setBusy(true);
+                  setStatus("Uploading...");
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("adminSecret", adminSecret);
+                  try {
+                    const res = await fetch("/api/upload", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) {
+                      const text = await res.text();
+                      setStatus(`Upload failed: ${text}`);
+                    } else {
+                      const { url } = await res.json();
+                      setMedia([...media, url]);
+                      setStatus("Uploaded ✅");
+                    }
+                  } catch (err: any) {
+                    setStatus(`Upload error: ${err?.message}`);
+                  }
+                  setBusy(false);
+                  e.target.value = "";
+                }}
+                className="block w-full text-sm text-[#4B4B4B] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-[#D46A4C] file:text-white hover:file:bg-[#D46A4C]/90 file:cursor-pointer"
+              />
+              <p className="mt-1 text-xs text-[#9A9A9A]">Upload images or videos directly</p>
+            </div>
           </div>
         </div>
 
