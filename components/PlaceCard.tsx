@@ -11,6 +11,7 @@ type PlaceCardPlace = {
   tags: string[];
   rating: number;
   review: string;
+  priceLevel?: number | null;
   googleMapsUrl?: string | null;
 };
 
@@ -53,11 +54,16 @@ export function PlaceCard({ place }: PlaceCardProps) {
         </div>
       </Link>
 
-      {/* Bottom: rating + map link */}
+      {/* Bottom: rating + price + map link */}
       <div className="mt-4 flex items-center justify-between text-xs text-[#9A9A9A]">
-        <div className="flex items-center gap-1">
-          <span className="text-[13px]">★</span>
-          <span>{place.rating.toFixed(1)}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="text-[13px]">★</span>
+            <span>{place.rating.toFixed(1)}</span>
+          </div>
+          {place.priceLevel != null && place.priceLevel > 0 && (
+            <span className="font-medium">{"€".repeat(place.priceLevel)}</span>
+          )}
         </div>
         {place.googleMapsUrl ? (
           <a
