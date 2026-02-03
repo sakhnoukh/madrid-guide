@@ -45,7 +45,7 @@ export function Header() {
               scrolled ? "text-[#2B2623]" : "text-white/90",
             ].join(" ")}
           >
-            Sami&apos;s Guide
+            My Guide
           </Link>
 
           <nav

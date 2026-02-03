@@ -35,7 +35,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
       <header className="mb-8">
         <h1 className="mb-3 font-serif text-3xl sm:text-4xl">Places in Madrid</h1>
         <p className="max-w-xl text-sm text-[#9A9A9A]">
-          Cafés, restaurants, and bars I actually go to. This list will grow as I keep exploring.
+          Cafés, restaurants, and bars I have/want to go to. This list will keep growing as I find new places.
         </p>
       </header>
 

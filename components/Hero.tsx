@@ -17,10 +17,10 @@ export function Hero() {
       {/* Centered content */}
       <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-[#F7F3EC]">
         <p className="mb-2 text-xs uppercase tracking-[0.25em] text-[#E4D3C2]">
-          Sami&apos;s guide to Madrid
+          My guide to Madrid
         </p>
         <h1 className="mb-4 font-serif text-4xl leading-tight sm:text-5xl md:text-6xl">
-          Places I actually go to.
+          Places I'd actually go to.
         </h1>
         <p className="mb-8 max-w-xl text-sm text-[#F1E4D7] sm:text-base">
           Cafés to read in, bars to talk in, and restaurants that feel worth
