@@ -54,14 +54,14 @@ export function Header() {
               scrolled ? "text-[#2B2623]/80" : "text-white/80",
             ].join(" ")}
           >
+            <Link className={scrolled ? "hover:text-[#2B2623]" : "hover:text-white"} href="/#about">
+              About
+            </Link>
             <Link className={scrolled ? "hover:text-[#2B2623]" : "hover:text-white"} href="/places">
               Places
             </Link>
             <Link className={scrolled ? "hover:text-[#2B2623]" : "hover:text-white"} href="/collections">
               Collections
-            </Link>
-            <Link className={scrolled ? "hover:text-[#2B2623]" : "hover:text-white"} href="/#about">
-              About
             </Link>
           </nav>
         </div>

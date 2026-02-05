@@ -1,9 +1,9 @@
 "use client";
 
+import L from "leaflet";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { applyLeafletIconFix } from "@/lib/leafletFix";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 
 type PlaceForMap = {
   id: string;
@@ -15,11 +15,35 @@ type PlaceForMap = {
   rating: number;
 };
 
-export function PlacesMap({ places }: { places: PlaceForMap[] }) {
-  useEffect(() => {
-    applyLeafletIconFix();
-  }, []);
+function dotIcon(colorClass: string) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="map-dot ${colorClass}"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
 
+function categoryDot(category: string) {
+  const cat = category.toLowerCase();
+  if (cat === "café" || cat === "cafe" || cat === "coffee") return dotIcon("dot-coffee");
+  if (cat === "bar" || cat === "club") return dotIcon("dot-bar");
+  return dotIcon("dot-restaurant");
+}
+
+function FitBounds({ points }: { points: { lat: number; lng: number }[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length === 0) return;
+    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number]));
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, points]);
+
+  return null;
+}
+
+export function PlacesMap({ places }: { places: PlaceForMap[] }) {
   const mappable = useMemo(
     () => places.filter((p) => typeof p.lat === "number" && typeof p.lng === "number"),
     [places]
@@ -41,21 +65,27 @@ export function PlacesMap({ places }: { places: PlaceForMap[] }) {
           className="h-full w-full"
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
 
+          <FitBounds points={mappable.map((p) => ({ lat: p.lat!, lng: p.lng! }))} />
+
           {mappable.map((p) => (
-            <Marker key={p.id} position={[p.lat as number, p.lng as number]}>
+            <Marker
+              key={p.id}
+              position={[p.lat as number, p.lng as number]}
+              icon={categoryDot(p.category)}
+            >
               <Popup>
-                <div className="space-y-1">
-                  <div className="font-semibold">{p.name}</div>
-                  <div className="text-xs opacity-75">
-                    {p.neighborhood} · {p.category} · ★ {p.rating.toFixed(1)}
+                <div className="min-w-[180px]">
+                  <div className="font-serif text-base leading-tight">{p.name}</div>
+                  <div className="mt-1 text-xs text-black/60">
+                    {p.neighborhood} · ★ {p.rating.toFixed(1)}
                   </div>
                   <Link
                     href={`/places/${p.id}`}
-                    className="inline-block text-xs text-[#D46A4C] underline underline-offset-2"
+                    className="mt-3 inline-block text-xs text-[#D46A4C] underline underline-offset-2"
                   >
                     View →
                   </Link>

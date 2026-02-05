@@ -19,3 +19,36 @@ body {
   color: var(--color-textMain);
   font-family: var(--font-sans);
 }
+
+/* === Map Dot Markers === */
+.map-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.dot-coffee {
+  background: #D46A4C;
+}
+.dot-restaurant {
+  background: #2B2623;
+}
+.dot-bar {
+  background: #6B5B4B;
+}
+
+/* === Leaflet popup styling === */
+.leaflet-popup-content-wrapper {
+  border-radius: 16px !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18) !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+}
+
+.leaflet-container a {
+  color: #D46A4C;
+}

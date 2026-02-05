@@ -79,32 +79,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* COLLECTIONS */}
-      <section className="mx-auto max-w-6xl px-4 pb-14 sm:pb-16">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-serif text-2xl sm:text-3xl">Collections</h2>
-            <p className="mt-1 text-sm text-[#9A9A9A]">
-              Curated lists for specific vibes.
-            </p>
-          </div>
-        </div>
-
-        {collections.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
-            No collections yet. Create some in /admin.
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {collections.map((c) => (
-              <Link key={c.id} href={`/collections/${c.slug}`}>
-                <CollectionCard collection={c} />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* FEATURED PICKS */}
       <section className="mx-auto max-w-6xl px-4 pb-14 sm:pb-16">
         <div className="mb-6 flex items-end justify-between gap-4">
@@ -134,6 +108,33 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      {/* COLLECTIONS */}
+      <section className="mx-auto max-w-6xl px-4 pb-14 sm:pb-16">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl">Collections</h2>
+            <p className="mt-1 text-sm text-[#9A9A9A]">
+              Curated lists for specific vibes.
+            </p>
+          </div>
+        </div>
+
+        {collections.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
+            No collections yet. Create some in /admin.
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {collections.map((c) => (
+              <Link key={c.id} href={`/collections/${c.slug}`}>
+                <CollectionCard collection={c} />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
 
       {/* NEWEST */}
       <section className="mx-auto max-w-6xl px-4 pb-20">
