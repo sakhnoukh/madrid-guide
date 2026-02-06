@@ -20,9 +20,44 @@ function mustEnv(name: string) {
 }
 
 export async function expandGoogleMapsUrl(url: string): Promise<string> {
-  // Handles maps.app.goo.gl short links by following redirects.
+  // Handles maps.app.goo.gl and goo.gl short links by following redirects.
+  // Some short links require browser-like headers to expand properly.
   try {
-    const res = await fetch(url, { redirect: "follow" });
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+    });
+
+    // If redirect worked, res.url is the final URL
+    if (res.url && res.url !== url) {
+      console.log("[expandGoogleMapsUrl] expanded:", url, "->", res.url);
+      return res.url;
+    }
+
+    // Some redirects embed the final URL in the HTML body (JavaScript redirect)
+    // Try to extract it from the response body
+    const html = await res.text();
+    const match = html.match(/window\.location\.replace\(['"]([^'"]+)['"]\)/);
+    if (match?.[1]) {
+      const decoded = match[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) =>
+        String.fromCharCode(parseInt(hex, 16))
+      );
+      console.log("[expandGoogleMapsUrl] extracted from JS:", decoded);
+      return decoded;
+    }
+
+    // Also check for meta refresh or canonical link
+    const metaMatch = html.match(/<meta[^>]+url=([^">\s]+)/i);
+    if (metaMatch?.[1]) {
+      console.log("[expandGoogleMapsUrl] extracted from meta:", metaMatch[1]);
+      return metaMatch[1];
+    }
+
     return res.url || url;
   } catch (err) {
     console.log("[expandGoogleMapsUrl] fetch failed, returning original URL:", err);
