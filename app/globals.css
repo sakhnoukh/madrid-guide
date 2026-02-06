@@ -36,7 +36,10 @@ body {
   background: #2B2623;
 }
 .dot-bar {
-  background: #6B5B4B;
+  background: #A8A8A8;
+}
+.dot-club {
+  background: #7BB8D4;
 }
 
 /* === Leaflet popup styling === */

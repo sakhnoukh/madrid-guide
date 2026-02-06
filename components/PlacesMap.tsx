@@ -27,7 +27,8 @@ function dotIcon(colorClass: string) {
 function categoryDot(category: string) {
   const cat = category.toLowerCase();
   if (cat === "café" || cat === "cafe" || cat === "coffee") return dotIcon("dot-coffee");
-  if (cat === "bar" || cat === "club") return dotIcon("dot-bar");
+  if (cat === "club" || cat === "nightclub") return dotIcon("dot-club");
+  if (cat === "bar" || cat === "drinks") return dotIcon("dot-bar");
   return dotIcon("dot-restaurant");
 }
 

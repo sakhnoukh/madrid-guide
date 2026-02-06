@@ -32,6 +32,16 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-16 sm:py-20">
+      <div className="mb-4 text-xs text-[#9A9A9A]">
+        <a
+          href="/"
+          className="inline-flex items-center gap-1 text-[#9A9A9A] underline-offset-2 hover:text-[#D46A4C] hover:underline"
+        >
+          <span>←</span>
+          <span>Back to home</span>
+        </a>
+      </div>
+
       <header className="mb-8">
         <h1 className="mb-3 font-serif text-3xl sm:text-4xl">Places in Madrid</h1>
         <p className="max-w-xl text-sm text-[#9A9A9A]">
