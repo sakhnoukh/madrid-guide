@@ -1,20 +1,20 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { apiError, normalizeName } from "../helpers.js";
+import { apiError } from "../lib/errors.js";
+import { truncate, MAX } from "../lib/strings.js";
+import { isValidImportSource } from "../lib/validation.js";
 
 const router = Router();
 router.use(authMiddleware);
-
-const VALID_SOURCES = ["instagram_url", "tiktok_url", "google_maps_url", "screenshot"];
 
 // POST /v1/imports — create an import draft
 router.post("/", async (req, res) => {
   try {
     const { source, source_url } = req.body;
 
-    if (!source || !VALID_SOURCES.includes(source)) {
-      res.status(400).json(apiError("VALIDATION_ERROR", `source must be one of: ${VALID_SOURCES.join(", ")}`, { field: "source" }));
+    if (!isValidImportSource(source)) {
+      res.status(400).json(apiError("VALIDATION_ERROR", "source must be one of: instagram_url, tiktok_url, google_maps_url, screenshot", { field: "source" }));
       return;
     }
 
@@ -82,10 +82,10 @@ router.post("/:id/ocr", async (req, res) => {
       return;
     }
 
-    // Update with OCR text
+    // Update with OCR text (truncated)
     await pool.query(
       `UPDATE imports SET ocr_text = $2, status = 'needs_user_input' WHERE id = $1`,
-      [id, ocr_text]
+      [id, truncate(ocr_text, MAX.OCR_TEXT)]
     );
 
     // Generate suggested search queries from OCR text

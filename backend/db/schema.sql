@@ -1,12 +1,13 @@
 -- v1 schema for Sami's Guide multi-user backend
--- Requires: Postgres 15+ with PostGIS and pg_trgm extensions
--- Reference: docs/API_DB.md
+-- Requires: Postgres 15+ with PostGIS, pg_trgm, pgcrypto
+-- Reference: docs/PR1_BACKEND.md
 
 -- ============================================================
 -- Extensions
 -- ============================================================
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================
 -- Enums
@@ -28,6 +29,26 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================================
+-- Shared helpers
+-- ============================================================
+CREATE OR REPLACE FUNCTION normalize_text(input TEXT)
+RETURNS TEXT
+LANGUAGE sql IMMUTABLE
+AS $$
+  SELECT trim(regexp_replace(lower(coalesce(input, '')), '[^a-z0-9]+', ' ', 'g'));
+$$;
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- ============================================================
 -- USERS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS app_users (
@@ -47,13 +68,18 @@ CREATE TABLE IF NOT EXISTS user_settings (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS user_settings_updated_at ON user_settings;
+CREATE TRIGGER user_settings_updated_at
+  BEFORE UPDATE ON user_settings
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ============================================================
 -- PLACES  (canonical venue record, deduplicated)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS places (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name            TEXT NOT NULL,
-  name_norm       TEXT NOT NULL,                       -- lowercase, no punctuation, for dedupe/search
+  name_norm       TEXT NOT NULL,
   address_line1   TEXT,
   city            TEXT,
   region          TEXT,
@@ -64,7 +90,7 @@ CREATE TABLE IF NOT EXISTS places (
   geo             GEOGRAPHY(Point, 4326) NOT NULL,
   phone           TEXT,
   website_url     TEXT,
-  dedupe_key      TEXT UNIQUE,                         -- computed server-side
+  dedupe_key      TEXT UNIQUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -72,6 +98,28 @@ CREATE TABLE IF NOT EXISTS places (
 CREATE INDEX IF NOT EXISTS places_geo_gix ON places USING GIST (geo);
 CREATE INDEX IF NOT EXISTS places_name_trgm ON places USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS places_city_trgm ON places USING GIN (city gin_trgm_ops);
+
+-- Auto-set name_norm + geo from lat/lng
+CREATE OR REPLACE FUNCTION places_set_derived_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.name_norm := normalize_text(NEW.name);
+  NEW.geo := ST_SetSRID(ST_MakePoint(NEW.lng, NEW.lat), 4326)::geography;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS places_derived_fields ON places;
+CREATE TRIGGER places_derived_fields
+  BEFORE INSERT OR UPDATE OF name, lat, lng ON places
+  FOR EACH ROW EXECUTE FUNCTION places_set_derived_fields();
+
+DROP TRIGGER IF EXISTS places_updated_at ON places;
+CREATE TRIGGER places_updated_at
+  BEFORE UPDATE ON places
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Place provenance (track where a place record came from)
 CREATE TABLE IF NOT EXISTS place_sources (
@@ -103,29 +151,39 @@ CREATE TABLE IF NOT EXISTS lists (
 
 CREATE INDEX IF NOT EXISTS lists_owner_idx ON lists(owner_user_id);
 
+DROP TRIGGER IF EXISTS lists_updated_at ON lists;
+CREATE TRIGGER lists_updated_at
+  BEFORE UPDATE ON lists
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ============================================================
 -- LIST ITEMS  (user's save of a place into a list)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS list_items (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  list_id         UUID NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
-  place_id        UUID NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  list_id          UUID NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+  place_id         UUID NOT NULL REFERENCES places(id) ON DELETE CASCADE,
   added_by_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
-  status          save_status NOT NULL DEFAULT 'want',
-  position        INT,
-  note            TEXT,
-  rating          SMALLINT CHECK (rating >= 1 AND rating <= 5),
-  visited_at      DATE,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status           save_status NOT NULL DEFAULT 'want',
+  position         INT,
+  note             TEXT,
+  rating           SMALLINT,
+  visited_at       DATE,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (list_id, place_id)
 );
 
 CREATE INDEX IF NOT EXISTS list_items_list_idx ON list_items(list_id);
 CREATE INDEX IF NOT EXISTS list_items_place_idx ON list_items(place_id);
 
+DROP TRIGGER IF EXISTS list_items_updated_at ON list_items;
+CREATE TRIGGER list_items_updated_at
+  BEFORE UPDATE ON list_items
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ============================================================
--- TAGS  (per-user)
+-- TAGS  (per-user, with auto name_norm)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS tags (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,6 +193,21 @@ CREATE TABLE IF NOT EXISTS tags (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (owner_user_id, name_norm)
 );
+
+CREATE OR REPLACE FUNCTION tags_set_name_norm()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.name_norm := normalize_text(NEW.name);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tags_name_norm ON tags;
+CREATE TRIGGER tags_name_norm
+  BEFORE INSERT OR UPDATE OF name ON tags
+  FOR EACH ROW EXECUTE FUNCTION tags_set_name_norm();
 
 CREATE TABLE IF NOT EXISTS list_item_tags (
   list_item_id UUID NOT NULL REFERENCES list_items(id) ON DELETE CASCADE,
@@ -162,36 +235,7 @@ CREATE TABLE IF NOT EXISTS imports (
 CREATE INDEX IF NOT EXISTS imports_user_idx ON imports(user_id);
 CREATE INDEX IF NOT EXISTS imports_status_idx ON imports(status);
 
--- ============================================================
--- Trigger: auto-compute geo from lat/lng on places
--- ============================================================
-CREATE OR REPLACE FUNCTION places_set_geo()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.lat IS NOT NULL AND NEW.lng IS NOT NULL THEN
-    NEW.geo := ST_SetSRID(ST_MakePoint(NEW.lng, NEW.lat), 4326)::geography;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_places_geo
-  BEFORE INSERT OR UPDATE OF lat, lng ON places
-  FOR EACH ROW EXECUTE FUNCTION places_set_geo();
-
--- ============================================================
--- Trigger: auto-update updated_at
--- ============================================================
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at := now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_user_settings_updated BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_places_updated BEFORE UPDATE ON places FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_lists_updated BEFORE UPDATE ON lists FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_list_items_updated BEFORE UPDATE ON list_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_imports_updated BEFORE UPDATE ON imports FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+DROP TRIGGER IF EXISTS imports_updated_at ON imports;
+CREATE TRIGGER imports_updated_at
+  BEFORE UPDATE ON imports
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();

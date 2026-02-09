@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { apiError, normalizeName, truncate } from "../helpers.js";
+import { apiError } from "../lib/errors.js";
+import { truncate, normalizeText, MAX } from "../lib/strings.js";
+import { isValidStatus, isValidVisibility } from "../lib/validation.js";
 
 const router = Router();
 router.use(authMiddleware);
@@ -35,14 +37,13 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const validVis = ["private", "unlisted", "public"];
-    const vis = validVis.includes(visibility) ? visibility : "private";
+    const vis = isValidVisibility(visibility) ? visibility : "private";
 
     const { rows } = await pool.query(
       `INSERT INTO lists (owner_user_id, title, description, visibility)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [req.userId, title.trim(), truncate(description, 1000), vis]
+      [req.userId, truncate(title.trim(), MAX.TITLE), truncate(description, MAX.DESCRIPTION), vis]
     );
 
     res.status(201).json({ id: rows[0].id });
@@ -114,7 +115,7 @@ router.patch("/:id", async (req, res) => {
       return;
     }
 
-    if (visibility && !["private", "unlisted", "public"].includes(visibility)) {
+    if (visibility && !isValidVisibility(visibility)) {
       res.status(400).json(apiError("VALIDATION_ERROR", "Invalid visibility", { field: "visibility" }));
       return;
     }
@@ -125,7 +126,7 @@ router.patch("/:id", async (req, res) => {
          description = COALESCE($3, description),
          visibility  = COALESCE($4, visibility)
        WHERE id = $1`,
-      [id, title?.trim() || null, description !== undefined ? truncate(description, 1000) : null, visibility || null]
+      [id, title?.trim() ? truncate(title.trim(), MAX.TITLE) : null, description !== undefined ? truncate(description, MAX.DESCRIPTION) : null, visibility || null]
     );
 
     res.json({ ok: true });
@@ -168,7 +169,7 @@ router.post("/:id/items", async (req, res) => {
       return;
     }
 
-    if (status && !["want", "been"].includes(status)) {
+    if (status && !isValidStatus(status)) {
       res.status(400).json(apiError("VALIDATION_ERROR", "status must be 'want' or 'been'", { field: "status" }));
       return;
     }
@@ -198,7 +199,7 @@ router.post("/:id/items", async (req, res) => {
          note = COALESCE(EXCLUDED.note, list_items.note),
          updated_at = now()
        RETURNING id`,
-      [listId, place_id, req.userId, status || "want", truncate(note, 2000)]
+      [listId, place_id, req.userId, status || "want", truncate(note, MAX.NOTE)]
     );
 
     const listItemId = rows[0].id;
@@ -208,7 +209,7 @@ router.post("/:id/items", async (req, res) => {
       for (const tagName of tags) {
         const name = tagName.trim();
         if (!name) continue;
-        const nameNorm = normalizeName(name);
+        const nameNorm = normalizeText(name);
         // Upsert tag (per-user)
         const tagResult = await pool.query(
           `INSERT INTO tags (owner_user_id, name, name_norm)

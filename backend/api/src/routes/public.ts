@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { apiError } from "../helpers.js";
+import { apiError } from "../lib/errors.js";
 
 const router = Router();
 

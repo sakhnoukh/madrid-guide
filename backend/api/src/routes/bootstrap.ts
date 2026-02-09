@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { apiError } from "../helpers.js";
+import { apiError } from "../lib/errors.js";
 
 const router = Router();
 router.use(authMiddleware);

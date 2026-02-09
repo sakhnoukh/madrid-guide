@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { apiError, truncate } from "../helpers.js";
+import { apiError } from "../lib/errors.js";
+import { truncate, MAX } from "../lib/strings.js";
+import { isValidRating, isValidStatus } from "../lib/validation.js";
 
 const router = Router();
 router.use(authMiddleware);
@@ -12,9 +14,11 @@ router.patch("/:id", async (req, res) => {
     const { id } = req.params;
     const { status, rating, note, visited_at } = req.body;
 
-    // Verify ownership
+    // Verify ownership via join to lists.owner_user_id
     const check = await pool.query(
-      "SELECT id FROM list_items WHERE id = $1 AND added_by_user_id = $2",
+      `SELECT li.id FROM list_items li
+       JOIN lists l ON l.id = li.list_id
+       WHERE li.id = $1 AND l.owner_user_id = $2`,
       [id, req.userId]
     );
     if (check.rows.length === 0) {
@@ -24,14 +28,14 @@ router.patch("/:id", async (req, res) => {
 
     // Validate rating
     if (rating !== undefined && rating !== null) {
-      if (typeof rating !== "number" || rating < 1 || rating > 5) {
+      if (!isValidRating(rating)) {
         res.status(400).json(apiError("VALIDATION_ERROR", "rating must be between 1 and 5", { field: "rating" }));
         return;
       }
     }
 
     // Validate status
-    if (status !== undefined && !["want", "been"].includes(status)) {
+    if (status !== undefined && !isValidStatus(status)) {
       res.status(400).json(apiError("VALIDATION_ERROR", "status must be 'want' or 'been'", { field: "status" }));
       return;
     }
@@ -43,7 +47,7 @@ router.patch("/:id", async (req, res) => {
          note       = COALESCE($4, note),
          visited_at = COALESCE($5, visited_at)
        WHERE id = $1`,
-      [id, status, rating, truncate(note, 2000), visited_at]
+      [id, status, rating, truncate(note, MAX.NOTE), visited_at]
     );
 
     res.json({ ok: true });
@@ -58,8 +62,12 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Verify ownership via join to lists.owner_user_id
     const result = await pool.query(
-      "DELETE FROM list_items WHERE id = $1 AND added_by_user_id = $2 RETURNING id",
+      `DELETE FROM list_items li
+       USING lists l
+       WHERE li.list_id = l.id AND li.id = $1 AND l.owner_user_id = $2
+       RETURNING li.id`,
       [id, req.userId]
     );
 
