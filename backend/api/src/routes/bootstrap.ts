@@ -2,14 +2,18 @@ import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { apiError } from "../lib/errors.js";
+import { truncate, MAX } from "../lib/strings.js";
 
 const router = Router();
 router.use(authMiddleware);
 
 // POST /v1/me/bootstrap — create user + default lists if missing
+// Accepts optional body: { display_name?, handle?, home_city?, home_country? }
+// Apple only provides the full name on first sign-in, so iOS sends it here.
 router.post("/bootstrap", async (req, res) => {
   try {
     const userId = req.userId!;
+    const { display_name, handle, home_city, home_country } = req.body ?? {};
 
     // Upsert app_users
     await pool.query(
@@ -17,10 +21,25 @@ router.post("/bootstrap", async (req, res) => {
       [userId]
     );
 
-    // Upsert user_settings
+    // If display_name or handle provided and current value is null, update
+    if (display_name || handle) {
+      await pool.query(
+        `UPDATE app_users SET
+           display_name = COALESCE(NULLIF(app_users.display_name, ''), $2),
+           handle       = COALESCE(app_users.handle, $3)
+         WHERE id = $1`,
+        [userId, truncate(display_name?.trim(), MAX.NAME) || null, truncate(handle?.trim(), MAX.NAME) || null]
+      );
+    }
+
+    // Upsert user_settings (with optional home_city/country on first call)
     await pool.query(
-      `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`,
-      [userId]
+      `INSERT INTO user_settings (user_id, home_city, home_country)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET
+         home_city    = COALESCE(NULLIF(user_settings.home_city, ''), EXCLUDED.home_city),
+         home_country = COALESCE(NULLIF(user_settings.home_country, ''), EXCLUDED.home_country)`,
+      [userId, truncate(home_city?.trim(), MAX.CITY) || null, truncate(home_country?.trim(), MAX.COUNTRY) || null]
     );
 
     // Ensure default lists exist
