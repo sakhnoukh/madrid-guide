@@ -1,0 +1,6 @@
+-- v1 schema placeholder
+-- See docs/EXPANSION.md § 6 for entity design:
+--   app_users, lists, places, list_items, tags, list_item_tags, imports
+--
+-- Will be implemented with Postgres + PostGIS.
+-- Migrations will live in backend/db/migrations/.
