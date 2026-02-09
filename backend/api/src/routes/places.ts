@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { computeDedupeKey } from "../helpers.js";
+import { apiError, normalizeName, computeDedupeKey, truncate } from "../helpers.js";
 
 const router = Router();
 router.use(authMiddleware);
@@ -9,79 +9,109 @@ router.use(authMiddleware);
 // POST /v1/places/upsert — create or return a canonical place
 router.post("/upsert", async (req, res) => {
   try {
-    const { name, address, city, lat, lng, google_place_id, apple_place_id, google_maps_uri, photo_url, price_level, source } = req.body;
+    const {
+      name, address_line1, city, region, country, postal_code,
+      lat, lng, phone, website_url, source,
+    } = req.body;
 
+    // Validation
     if (!name || typeof name !== "string" || !name.trim()) {
-      res.status(400).json({ error: "name is required" });
+      res.status(400).json(apiError("VALIDATION_ERROR", "name is required", { field: "name" }));
+      return;
+    }
+    if (typeof lat !== "number" || lat < -90 || lat > 90) {
+      res.status(400).json(apiError("VALIDATION_ERROR", "lat must be a number between -90 and 90", { field: "lat" }));
+      return;
+    }
+    if (typeof lng !== "number" || lng < -180 || lng > 180) {
+      res.status(400).json(apiError("VALIDATION_ERROR", "lng must be a number between -180 and 180", { field: "lng" }));
       return;
     }
 
-    const placeCity = city?.trim() || "Madrid";
-    const dedupeKey = computeDedupeKey(name, placeCity, lat, lng);
+    const nameNorm = normalizeName(name);
+    const placeCity = city?.trim() || null;
+    const dedupeKey = computeDedupeKey(name, placeCity || "", lat, lng);
 
-    // Try to find existing by dedupe_key or provider IDs
-    let existing = null;
+    // 1) Check place_sources if source provided
+    let existingPlaceId: string | null = null;
 
-    if (google_place_id) {
-      const r = await pool.query("SELECT id FROM places WHERE google_place_id = $1", [google_place_id]);
-      if (r.rows.length > 0) existing = r.rows[0];
+    if (source?.source_type && source?.source_id) {
+      const r = await pool.query(
+        "SELECT place_id FROM place_sources WHERE source_type = $1 AND source_id = $2",
+        [source.source_type, source.source_id]
+      );
+      if (r.rows.length > 0) existingPlaceId = r.rows[0].place_id;
     }
 
-    if (!existing && apple_place_id) {
-      const r = await pool.query("SELECT id FROM places WHERE apple_place_id = $1", [apple_place_id]);
-      if (r.rows.length > 0) existing = r.rows[0];
-    }
-
-    if (!existing) {
+    // 2) Check dedupe_key
+    if (!existingPlaceId) {
       const r = await pool.query("SELECT id FROM places WHERE dedupe_key = $1", [dedupeKey]);
-      if (r.rows.length > 0) existing = r.rows[0];
+      if (r.rows.length > 0) existingPlaceId = r.rows[0].id;
     }
 
-    if (existing) {
+    if (existingPlaceId) {
       // Update with any new info
-      const { rows } = await pool.query(
+      await pool.query(
         `UPDATE places SET
            name = COALESCE($2, name),
-           address = COALESCE($3, address),
-           lat = COALESCE($4, lat),
-           lng = COALESCE($5, lng),
-           google_place_id = COALESCE($6, google_place_id),
-           apple_place_id = COALESCE($7, apple_place_id),
-           google_maps_uri = COALESCE($8, google_maps_uri),
-           photo_url = COALESCE($9, photo_url),
-           price_level = COALESCE($10, price_level)
-         WHERE id = $1
-         RETURNING id, name, address, city, lat, lng, dedupe_key, created_at`,
-        [existing.id, name.trim(), address, lat, lng, google_place_id, apple_place_id, google_maps_uri, photo_url, price_level]
+           name_norm = COALESCE($3, name_norm),
+           address_line1 = COALESCE($4, address_line1),
+           city = COALESCE($5, city),
+           region = COALESCE($6, region),
+           country = COALESCE($7, country),
+           postal_code = COALESCE($8, postal_code),
+           lat = $9, lng = $10,
+           phone = COALESCE($11, phone),
+           website_url = COALESCE($12, website_url)
+         WHERE id = $1`,
+        [existingPlaceId, name.trim(), nameNorm, truncate(address_line1, 500),
+         placeCity, truncate(region, 100), truncate(country, 100), truncate(postal_code, 20),
+         lat, lng, truncate(phone, 30), truncate(website_url, 2000)]
       );
-      res.json({ place: rows[0], created: false });
+      res.json({ place_id: existingPlaceId });
       return;
     }
 
-    // Create new place
+    // 3) Create new place
     const { rows } = await pool.query(
-      `INSERT INTO places (name, address, city, lat, lng, dedupe_key, google_place_id, apple_place_id, google_maps_uri, photo_url, price_level, source)
+      `INSERT INTO places (name, name_norm, address_line1, city, region, country, postal_code, lat, lng, phone, website_url, dedupe_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, name, address, city, lat, lng, dedupe_key, created_at`,
-      [name.trim(), address, placeCity, lat, lng, dedupeKey, google_place_id, apple_place_id, google_maps_uri, photo_url, price_level, source || "manual"]
+       RETURNING id`,
+      [name.trim(), nameNorm, truncate(address_line1, 500), placeCity,
+       truncate(region, 100), truncate(country, 100), truncate(postal_code, 20),
+       lat, lng, truncate(phone, 30), truncate(website_url, 2000), dedupeKey]
     );
 
-    res.status(201).json({ place: rows[0], created: true });
+    const placeId = rows[0].id;
+
+    // 4) Insert source provenance if provided
+    if (source?.source_type) {
+      await pool.query(
+        `INSERT INTO place_sources (place_id, source_type, source_id, url, raw)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (source_type, source_id) DO NOTHING`,
+        [placeId, source.source_type, source.source_id || null,
+         source.url || null, source.raw ? JSON.stringify(source.raw) : null]
+      );
+    }
+
+    res.status(201).json({ place_id: placeId });
   } catch (err) {
     console.error("[POST /v1/places/upsert]", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json(apiError("INTERNAL_ERROR", "Internal server error"));
   }
 });
 
-// GET /v1/places/search?q=...&lat=...&lng=...
+// GET /v1/places/search?q=...&lat=...&lng=...&radius_m=...
 router.get("/search", async (req, res) => {
   try {
     const q = (req.query.q as string)?.trim();
     const lat = parseFloat(req.query.lat as string);
     const lng = parseFloat(req.query.lng as string);
+    const radiusM = parseFloat(req.query.radius_m as string) || 15000;
 
     if (!q) {
-      res.status(400).json({ error: "q (search query) is required" });
+      res.status(400).json(apiError("VALIDATION_ERROR", "q is required", { field: "q" }));
       return;
     }
 
@@ -89,19 +119,19 @@ router.get("/search", async (req, res) => {
     let params: (string | number)[];
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      // Search by name similarity + distance
       query = `
-        SELECT id, name, address, city, lat, lng, photo_url, price_level,
+        SELECT id, name, address_line1, city, lat, lng,
                similarity(name, $1) AS sim,
-               ST_Distance(geom, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography) AS dist_m
+               ST_Distance(geo, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography) AS dist_m
         FROM places
-        WHERE name % $1 OR name ILIKE $4
+        WHERE (name % $1 OR name ILIKE $4)
+          AND ST_DWithin(geo, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $5)
         ORDER BY sim DESC, dist_m ASC NULLS LAST
         LIMIT 20`;
-      params = [q, lat, lng, `%${q}%`];
+      params = [q, lat, lng, `%${q}%`, radiusM];
     } else {
       query = `
-        SELECT id, name, address, city, lat, lng, photo_url, price_level,
+        SELECT id, name, address_line1, city, lat, lng,
                similarity(name, $1) AS sim
         FROM places
         WHERE name % $1 OR name ILIKE $2
@@ -111,10 +141,10 @@ router.get("/search", async (req, res) => {
     }
 
     const { rows } = await pool.query(query, params);
-    res.json({ places: rows });
+    res.json({ results: rows });
   } catch (err) {
     console.error("[GET /v1/places/search]", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json(apiError("INTERNAL_ERROR", "Internal server error"));
   }
 });
 
