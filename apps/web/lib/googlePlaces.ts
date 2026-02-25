@@ -146,15 +146,16 @@ function extractTextQueryFromHtml(html: string): string | null {
   const normalized = normalizeEscapedUrl(html);
 
   const patterns = [
-    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+property=["']og:title["'][^>]*content=(['"])(.*?)\1/i,
+    /<meta[^>]+name=["']twitter:title["'][^>]*content=(['"])(.*?)\1/i,
     /<title[^>]*>([^<]+)<\/title>/i,
     /"title"\s*:\s*"([^"]+)"/i,
   ];
 
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
-    const candidate = cleanupTitleCandidate(match?.[1] || "");
+    const raw = match?.[2] ?? match?.[1] ?? "";
+    const candidate = cleanupTitleCandidate(raw);
     if (candidate) return candidate;
   }
 
