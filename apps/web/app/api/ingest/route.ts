@@ -118,6 +118,7 @@ export async function POST(req: Request) {
   const cid = extractCidFromUrl(expanded);
   const latLngFromUrl = extractLatLngFromUrl(expanded);
   const query = extractTextQueryFromUrl(expanded);
+  const hasUrlSignal = /^https?:\/\//i.test(expanded) || /^https?:\/\//i.test(body.mapsUrl);
 
   // 3) Enrichment fallback: Text Search using name derived from URL
   if (!placeId && query) {
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
   }
 
   // We can ingest even without Place ID as long as we have another signal.
-  if (!placeId && !cid && !latLngFromUrl && !query) {
+  if (!placeId && !cid && !latLngFromUrl && !query && !hasUrlSignal) {
     console.log("[INGEST_ERROR]", {
       reqId,
       message: "Could not determine Place ID/CID/lat-lng/query",
@@ -193,11 +194,11 @@ export async function POST(req: Request) {
     query ||
     (latLngFromUrl
       ? `Pinned place (${latLngFromUrl.lat.toFixed(5)}, ${latLngFromUrl.lng.toFixed(5)})`
-      : "Untitled place");
+      : "Google Maps place");
 
   const inferredLat = details?.lat ?? latLngFromUrl?.lat;
   const inferredLng = details?.lng ?? latLngFromUrl?.lng;
-  const inferredMapsUri = details?.googleMapsUri ?? expanded;
+  const inferredMapsUri = details?.googleMapsUri || expanded || body.mapsUrl;
 
   // store CID as synthetic identifier when Place ID is unavailable
   const identityKey = placeId || (cid ? `cid:${cid}` : undefined);
@@ -214,7 +215,9 @@ export async function POST(req: Request) {
         })
       : null) ||
     (await prisma.place.findFirst({
-      where: { googleMapsUrl: body.mapsUrl },
+      where: {
+        OR: [{ googleMapsUrl: body.mapsUrl }, { googleMapsUrl: inferredMapsUri }],
+      },
     }));
 
   const photoUrl = details?.primaryPhotoName
@@ -230,7 +233,7 @@ export async function POST(req: Request) {
           lat: inferredLat ?? existing.lat,
           lng: inferredLng ?? existing.lng,
           googleMapsUri: inferredMapsUri,
-          googleMapsUrl: body.mapsUrl,
+          googleMapsUrl: inferredMapsUri,
           googlePlaceId: identityKey ?? existing.googlePlaceId,
           category: normalizeCategory(body.category) ?? existing.category,
           neighborhood: body.neighborhood ?? existing.neighborhood,
@@ -255,7 +258,7 @@ export async function POST(req: Request) {
           goodFor: goodFor.length ? JSON.stringify(goodFor) : undefined,
           review,
           priceLevel: typeof details?.priceLevel === "number" ? details.priceLevel : undefined,
-          googleMapsUrl: body.mapsUrl,
+          googleMapsUrl: inferredMapsUri,
           googlePlaceId: identityKey,
           address: details?.address,
           lat: inferredLat,

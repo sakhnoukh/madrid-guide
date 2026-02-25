@@ -80,6 +80,18 @@ export function extractLatLngFromUrl(url: string): { lat: number; lng: number } 
   return null;
 }
 
+function extractCidFromHtml(html: string): string | null {
+  const normalized = normalizeEscapedUrl(html);
+  const patterns = [/[?&]cid=(\d{5,})/i, /"ludocid"\s*:\s*"(\d{5,})"/i, /"cid"\s*:\s*"(\d{5,})"/i];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
 function stripTrailingPunctuation(value: string) {
   return value.replace(/[),.!?]+$/, "");
 }
@@ -215,6 +227,8 @@ function extractTextQueryFromHtml(html: string): string | null {
   const patterns = [
     /<meta[^>]+property=["']og:title["'][^>]*content=(['"])(.*?)\1/i,
     /<meta[^>]+name=["']twitter:title["'][^>]*content=(['"])(.*?)\1/i,
+    /<meta[^>]+property=["']og:description["'][^>]*content=(['"])(.*?)\1/i,
+    /<meta[^>]+name=["']description["'][^>]*content=(['"])(.*?)\1/i,
     /<title[^>]*>([^<]+)<\/title>/i,
     /"title"\s*:\s*"([^"]+)"/i,
   ];
@@ -312,6 +326,13 @@ export async function expandGoogleMapsUrl(url: string): Promise<string> {
       if (fromHtml && fromHtml !== current) {
         current = fromHtml;
         continue;
+      }
+
+      const cidFromHtml = extractCidFromHtml(html);
+      if (cidFromHtml) {
+        const syntheticCidUrl = `https://www.google.com/maps?cid=${cidFromHtml}`;
+        console.log("[expandGoogleMapsUrl] built CID URL from HTML:", syntheticCidUrl);
+        return syntheticCidUrl;
       }
 
       const queryFromHtml = extractTextQueryFromHtml(html);
