@@ -1,7 +1,8 @@
 "use client";
 
+import type { LatLngBounds as LeafletLatLngBounds } from "leaflet";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlaceCard } from "@/components/PlaceCard";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap").then((m) => m.PlacesMap), {
@@ -45,7 +46,12 @@ export function PlacesClient({
   const [activeNeighborhood, setActiveNeighborhood] = useState<string>("all");
   const [ratingSort, setRatingSort] = useState<RatingSort>("none");
   const [query, setQuery] = useState(initialQuery);
+
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
+  const [mapBounds, setMapBounds] = useState<LeafletLatLngBounds | null>(null);
   const [view, setView] = useState<"list" | "map">("list");
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -85,6 +91,92 @@ export function PlacesClient({
 
     return result;
   }, [places, activeCategory, activeTag, activeNeighborhood, ratingSort, query]);
+
+  const mappableFiltered = useMemo(
+    () => filtered.filter((p) => typeof p.lat === "number" && typeof p.lng === "number"),
+    [filtered]
+  );
+
+  const visiblePlaces = useMemo(() => {
+    if (!mapBounds) return mappableFiltered;
+
+    return mappableFiltered.filter((p) => mapBounds.contains([p.lat as number, p.lng as number]));
+  }, [mappableFiltered, mapBounds]);
+
+  const handleBoundsChange = useCallback((bounds: LeafletLatLngBounds) => {
+    setMapBounds(bounds);
+  }, []);
+
+  const handleSelect = useCallback((placeId: string) => {
+    setSelectedPlaceId(placeId);
+  }, []);
+
+  const handleHover = useCallback((placeId: string | null) => {
+    setHoveredPlaceId(placeId);
+  }, []);
+
+  const resolvedSelectedPlaceId = useMemo(() => {
+    if (!selectedPlaceId) return null;
+    return mappableFiltered.some((place) => place.id === selectedPlaceId) ? selectedPlaceId : null;
+  }, [mappableFiltered, selectedPlaceId]);
+
+  const resolvedHoveredPlaceId = useMemo(() => {
+    if (!hoveredPlaceId) return null;
+    return mappableFiltered.some((place) => place.id === hoveredPlaceId) ? hoveredPlaceId : null;
+  }, [mappableFiltered, hoveredPlaceId]);
+
+  useEffect(() => {
+    if (!resolvedSelectedPlaceId) return;
+    const node = cardRefs.current[resolvedSelectedPlaceId];
+    if (!node) return;
+
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [resolvedSelectedPlaceId]);
+
+  const mapPane = mappableFiltered.length ? (
+    <PlacesMap
+      places={mappableFiltered}
+      selectedPlaceId={resolvedSelectedPlaceId}
+      hoveredPlaceId={resolvedHoveredPlaceId}
+      onSelect={handleSelect}
+      onHover={handleHover}
+      onBoundsChange={handleBoundsChange}
+      heightClassName="h-[65vh] min-h-[460px] lg:h-[calc(100vh-14rem)] lg:min-h-[560px]"
+    />
+  ) : (
+    <div className="rounded-2xl bg-white p-6 text-sm text-[#9A9A9A] shadow-sm ring-1 ring-black/5">
+      No mappable places for this filter yet. Places without coordinates are excluded from the map.
+    </div>
+  );
+
+  const listPane = (
+    <>
+      {visiblePlaces.length === 0 ? (
+        <p className="text-sm text-[#9A9A9A]">No places are in the current map area. Move the map to explore more.</p>
+      ) : (
+        <div className="space-y-4">
+          {visiblePlaces.map((place) => (
+            <div
+              key={place.id}
+              id={`place-${place.id}`}
+              ref={(node) => {
+                cardRefs.current[place.id] = node;
+              }}
+            >
+              <PlaceCard
+                place={place}
+                mode="select"
+                isSelected={resolvedSelectedPlaceId === place.id}
+                isHovered={resolvedHoveredPlaceId === place.id}
+                onSelect={handleSelect}
+                onHover={handleHover}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -199,11 +291,12 @@ export function PlacesClient({
       {/* GRID HEADER with view toggle + sort */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-sm text-[#9A9A9A]">
-          {filtered.length} {filtered.length === 1 ? "place" : "places"}
+          {visiblePlaces.length} in view · {mappableFiltered.length} mappable
+          {filtered.length !== mappableFiltered.length ? ` (${filtered.length - mappableFiltered.length} without coordinates)` : ""}
         </p>
         <div className="flex items-center gap-2">
           {/* List/Map toggle */}
-          <div className="flex items-center rounded-full bg-white shadow-sm ring-1 ring-black/5">
+          <div className="flex items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 lg:hidden">
             <button
               onClick={() => setView("list")}
               className={[
@@ -247,16 +340,31 @@ export function PlacesClient({
         </div>
       </div>
 
-      {/* GRID or MAP */}
+      {/* MOBILE */}
       {filtered.length === 0 ? (
         <p className="text-sm text-[#9A9A9A]">No places match this filter yet.</p>
-      ) : view === "map" ? (
-        <PlacesMap places={filtered} />
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((place) => (
-            <PlaceCard key={place.id} place={place} />
-          ))}
+        <>
+          <div className="lg:hidden">
+            {view === "map" ? mapPane : listPane}
+          </div>
+
+          {/* DESKTOP SPLIT */}
+          <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-6">
+            <section className="h-[calc(100vh-14rem)] overflow-y-auto pr-2">
+              {listPane}
+            </section>
+
+            <aside className="sticky top-24 h-[calc(100vh-8rem)] self-start">
+              {mapPane}
+            </aside>
+          </div>
+        </>
+      )}
+
+      {mappableFiltered.length > 0 && visiblePlaces.length === 0 && (
+        <div className="mt-4 rounded-xl border border-[#D8C7B8] bg-[#FDF8F3] px-4 py-2 text-xs text-[#7A6A60]">
+          Tip: pan or zoom the map to update the visible list.
         </div>
       )}
     </>

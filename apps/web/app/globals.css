@@ -27,6 +27,17 @@ body {
   border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.map-dot-hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.map-dot-selected {
+  transform: scale(1.35);
+  box-shadow: 0 0 0 3px rgba(212, 106, 76, 0.24), 0 6px 14px rgba(0, 0, 0, 0.26);
 }
 
 .dot-coffee {

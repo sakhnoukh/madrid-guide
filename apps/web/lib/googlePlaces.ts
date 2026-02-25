@@ -476,6 +476,33 @@ export async function searchPlaceIdByText(textQuery: string): Promise<string | n
   return typeof id === "string" ? id : null;
 }
 
+export async function searchPlaceIdByLatLng(lat: number, lng: number): Promise<string | null> {
+  // Last-resort fallback when shared links only contain dropped-pin coordinates.
+  // We bias to the exact coordinate with a very small radius to avoid random matches.
+  const body = {
+    textQuery: `${lat},${lng}`,
+    locationBias: {
+      circle: {
+        center: { latitude: lat, longitude: lng },
+        radius: 120,
+      },
+    },
+    maxResultCount: 1,
+  };
+
+  const data = await placesFetch(
+    "https://places.googleapis.com/v1/places:searchText",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+      fieldMask: "places.id,places.displayName,places.location",
+    }
+  );
+
+  const id = data?.places?.[0]?.id;
+  return typeof id === "string" ? id : null;
+}
+
 export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
   // Places API (New): GET https://places.googleapis.com/v1/places/{placeId}
   const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`;

@@ -8,6 +8,7 @@ import {
   extractPlaceIdFromUrl,
   extractTextQueryFromUrl,
   getPlaceDetails,
+  searchPlaceIdByLatLng,
   searchPlaceIdByText,
 } from "@/lib/googlePlaces";
 
@@ -113,11 +114,23 @@ export async function POST(req: Request) {
   const expanded = await expandGoogleMapsUrl(body.mapsUrl);
   console.log("[INGEST]", { reqId, step: "expanded", inputUrl: body.mapsUrl, expandedUrl: expanded });
 
-  // 2) Try extract Place ID/CID/lat-lng/query from expanded URL
-  let placeId = extractPlaceIdFromUrl(expanded);
-  const cid = extractCidFromUrl(expanded);
-  const latLngFromUrl = extractLatLngFromUrl(expanded);
-  const query = extractTextQueryFromUrl(expanded);
+  // 2) Extract Place ID/CID/lat-lng/query from both original + expanded URL.
+  // Some full Google Maps links lose rich identifiers after redirect canonicalization.
+  const rawPlaceId = extractPlaceIdFromUrl(body.mapsUrl);
+  const expandedPlaceId = extractPlaceIdFromUrl(expanded);
+  let placeId = rawPlaceId || expandedPlaceId;
+
+  const rawCid = extractCidFromUrl(body.mapsUrl);
+  const expandedCid = extractCidFromUrl(expanded);
+  const cid = rawCid || expandedCid;
+
+  const rawLatLng = extractLatLngFromUrl(body.mapsUrl);
+  const expandedLatLng = extractLatLngFromUrl(expanded);
+  const latLngFromUrl = expandedLatLng || rawLatLng;
+
+  const rawQuery = extractTextQueryFromUrl(body.mapsUrl);
+  const expandedQuery = extractTextQueryFromUrl(expanded);
+  const query = expandedQuery || rawQuery;
   const hasUrlSignal = /^https?:\/\//i.test(expanded) || /^https?:\/\//i.test(body.mapsUrl);
 
   // 3) Enrichment fallback: Text Search using name derived from URL
@@ -126,6 +139,20 @@ export async function POST(req: Request) {
       placeId = await searchPlaceIdByText(`${query} Madrid`);
     } catch (err) {
       console.log("[INGEST_WARN]", { reqId, message: "Text search failed", query, err });
+    }
+  }
+
+  if (!placeId && latLngFromUrl) {
+    try {
+      placeId = await searchPlaceIdByLatLng(latLngFromUrl.lat, latLngFromUrl.lng);
+    } catch (err) {
+      console.log("[INGEST_WARN]", {
+        reqId,
+        message: "Lat/lng search failed",
+        lat: latLngFromUrl.lat,
+        lng: latLngFromUrl.lng,
+        err,
+      });
     }
   }
 

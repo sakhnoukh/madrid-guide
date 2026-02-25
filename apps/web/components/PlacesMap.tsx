@@ -1,8 +1,8 @@
 "use client";
 
-import L from "leaflet";
+import L, { type LatLngBounds as LeafletLatLngBounds, type Marker as LeafletMarker } from "leaflet";
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 
 type PlaceForMap = {
@@ -15,21 +15,33 @@ type PlaceForMap = {
   rating: number;
 };
 
-function dotIcon(colorClass: string) {
+type PlacesMapProps = {
+  places: PlaceForMap[];
+  selectedPlaceId: string | null;
+  hoveredPlaceId: string | null;
+  onSelect: (placeId: string) => void;
+  onHover: (placeId: string | null) => void;
+  onBoundsChange: (bounds: LeafletLatLngBounds) => void;
+  heightClassName?: string;
+};
+
+function dotIcon(colorClass: string, stateClass?: string) {
   return L.divIcon({
     className: "",
-    html: `<div class="map-dot ${colorClass}"></div>`,
+    html: `<div class="map-dot ${colorClass} ${stateClass ?? ""}"></div>`,
     iconSize: [14, 14],
     iconAnchor: [7, 7],
   });
 }
 
-function categoryDot(category: string) {
+function categoryDot(category: string, state: "default" | "hover" | "selected") {
   const cat = category.toLowerCase();
-  if (cat === "café" || cat === "cafe" || cat === "coffee") return dotIcon("dot-coffee");
-  if (cat === "club" || cat === "nightclub") return dotIcon("dot-club");
-  if (cat === "bar" || cat === "drinks") return dotIcon("dot-bar");
-  return dotIcon("dot-restaurant");
+  const stateClass = state === "selected" ? "map-dot-selected" : state === "hover" ? "map-dot-hover" : "";
+
+  if (cat === "café" || cat === "cafe" || cat === "coffee") return dotIcon("dot-coffee", stateClass);
+  if (cat === "club" || cat === "nightclub") return dotIcon("dot-club", stateClass);
+  if (cat === "bar" || cat === "drinks") return dotIcon("dot-bar", stateClass);
+  return dotIcon("dot-restaurant", stateClass);
 }
 
 function FitBounds({ points }: { points: { lat: number; lng: number }[] }) {
@@ -44,10 +56,75 @@ function FitBounds({ points }: { points: { lat: number; lng: number }[] }) {
   return null;
 }
 
-export function PlacesMap({ places }: { places: PlaceForMap[] }) {
+function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (bounds: LeafletLatLngBounds) => void }) {
+  const map = useMap();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const emitDebounced = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        onBoundsChange(map.getBounds());
+      }, 200);
+    };
+
+    emitDebounced();
+    map.on("moveend", emitDebounced);
+    map.on("zoomend", emitDebounced);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      map.off("moveend", emitDebounced);
+      map.off("zoomend", emitDebounced);
+    };
+  }, [map, onBoundsChange]);
+
+  return null;
+}
+
+function SelectionSync({
+  selectedPlace,
+  markerRefs,
+}: {
+  selectedPlace: PlaceForMap | null;
+  markerRefs: React.MutableRefObject<Record<string, LeafletMarker | null>>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedPlace || typeof selectedPlace.lat !== "number" || typeof selectedPlace.lng !== "number") {
+      return;
+    }
+
+    const target: [number, number] = [selectedPlace.lat, selectedPlace.lng];
+    map.flyTo(target, Math.max(map.getZoom(), 14), { duration: 0.45 });
+
+    const marker = markerRefs.current[selectedPlace.id];
+    if (marker) marker.openPopup();
+  }, [map, markerRefs, selectedPlace]);
+
+  return null;
+}
+
+export function PlacesMap({
+  places,
+  selectedPlaceId,
+  hoveredPlaceId,
+  onSelect,
+  onHover,
+  onBoundsChange,
+  heightClassName,
+}: PlacesMapProps) {
   const mappable = useMemo(
     () => places.filter((p) => typeof p.lat === "number" && typeof p.lng === "number"),
     [places]
+  );
+  const points = useMemo(() => mappable.map((p) => ({ lat: p.lat as number, lng: p.lng as number })), [mappable]);
+  const markerRefs = useRef<Record<string, LeafletMarker | null>>({});
+
+  const selectedPlace = useMemo(
+    () => mappable.find((p) => p.id === selectedPlaceId) ?? null,
+    [mappable, selectedPlaceId]
   );
 
   // Madrid center fallback
@@ -58,7 +135,7 @@ export function PlacesMap({ places }: { places: PlaceForMap[] }) {
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-      <div className="h-[70vh] min-h-[520px] w-full">
+      <div className={`${heightClassName ?? "h-[70vh] min-h-[520px]"} w-full`}>
         <MapContainer
           center={center}
           zoom={13}
@@ -70,13 +147,26 @@ export function PlacesMap({ places }: { places: PlaceForMap[] }) {
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
 
-          <FitBounds points={mappable.map((p) => ({ lat: p.lat!, lng: p.lng! }))} />
+          <FitBounds points={points} />
+          <BoundsWatcher onBoundsChange={onBoundsChange} />
+          <SelectionSync selectedPlace={selectedPlace} markerRefs={markerRefs} />
 
           {mappable.map((p) => (
             <Marker
               key={p.id}
               position={[p.lat as number, p.lng as number]}
-              icon={categoryDot(p.category)}
+              ref={(marker) => {
+                markerRefs.current[p.id] = marker;
+              }}
+              icon={categoryDot(
+                p.category,
+                selectedPlaceId === p.id ? "selected" : hoveredPlaceId === p.id ? "hover" : "default"
+              )}
+              eventHandlers={{
+                click: () => onSelect(p.id),
+                mouseover: () => onHover(p.id),
+                mouseout: () => onHover(null),
+              }}
             >
               <Popup>
                 <div className="min-w-[180px]">
@@ -98,7 +188,7 @@ export function PlacesMap({ places }: { places: PlaceForMap[] }) {
       </div>
 
       <div className="p-3 text-xs text-[#9A9A9A]">
-        Tip: pinch/scroll to zoom. Click pins for details.
+        Tip: pinch/scroll to zoom. Click pins or list cards to sync both panes.
       </div>
     </div>
   );
