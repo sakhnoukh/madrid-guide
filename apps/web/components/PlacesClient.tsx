@@ -50,7 +50,8 @@ export function PlacesClient({
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const [mapBounds, setMapBounds] = useState<LeafletLatLngBounds | null>(null);
-  const [view, setView] = useState<"list" | "map">("list");
+  const [layoutMode, setLayoutMode] = useState<"list" | "split">("list");
+  const [splitMobilePane, setSplitMobilePane] = useState<"list" | "map">("list");
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const allTags = useMemo(() => {
@@ -291,31 +292,35 @@ export function PlacesClient({
       {/* GRID HEADER with view toggle + sort */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-sm text-[#9A9A9A]">
-          {visiblePlaces.length} in view · {mappableFiltered.length} mappable
-          {filtered.length !== mappableFiltered.length ? ` (${filtered.length - mappableFiltered.length} without coordinates)` : ""}
+          {layoutMode === "split"
+            ? `${visiblePlaces.length} in view · ${mappableFiltered.length} mappable`
+            : `${filtered.length} ${filtered.length === 1 ? "place" : "places"}`}
+          {layoutMode === "split" && filtered.length !== mappableFiltered.length
+            ? ` (${filtered.length - mappableFiltered.length} without coordinates)`
+            : ""}
         </p>
         <div className="flex items-center gap-2">
-          {/* List/Map toggle */}
-          <div className="flex items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 lg:hidden">
+          {/* List/Split toggle */}
+          <div className="flex items-center rounded-full bg-white shadow-sm ring-1 ring-black/5">
             <button
-              onClick={() => setView("list")}
+              onClick={() => setLayoutMode("list")}
               className={[
                 "px-3 py-1 text-xs transition rounded-full",
-                view === "list" ? "bg-[#D46A4C] text-white" : "text-[#4B4B4B] hover:bg-black/5",
+                layoutMode === "list" ? "bg-[#D46A4C] text-white" : "text-[#4B4B4B] hover:bg-black/5",
               ].join(" ")}
               type="button"
             >
               List
             </button>
             <button
-              onClick={() => setView("map")}
+              onClick={() => setLayoutMode("split")}
               className={[
                 "px-3 py-1 text-xs transition rounded-full",
-                view === "map" ? "bg-[#D46A4C] text-white" : "text-[#4B4B4B] hover:bg-black/5",
+                layoutMode === "split" ? "bg-[#D46A4C] text-white" : "text-[#4B4B4B] hover:bg-black/5",
               ].join(" ")}
               type="button"
             >
-              Map
+              Split
             </button>
           </div>
           {/* Rating sort */}
@@ -343,10 +348,41 @@ export function PlacesClient({
       {/* MOBILE */}
       {filtered.length === 0 ? (
         <p className="text-sm text-[#9A9A9A]">No places match this filter yet.</p>
+      ) : layoutMode === "list" ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((place) => (
+            <PlaceCard key={place.id} place={place} />
+          ))}
+        </div>
       ) : (
         <>
+          <div className="mb-3 flex items-center gap-2 lg:hidden">
+            <div className="flex items-center rounded-full bg-white shadow-sm ring-1 ring-black/5">
+              <button
+                onClick={() => setSplitMobilePane("list")}
+                className={[
+                  "px-3 py-1 text-xs transition rounded-full",
+                  splitMobilePane === "list" ? "bg-[#1E3A5F] text-white" : "text-[#4B4B4B] hover:bg-black/5",
+                ].join(" ")}
+                type="button"
+              >
+                List pane
+              </button>
+              <button
+                onClick={() => setSplitMobilePane("map")}
+                className={[
+                  "px-3 py-1 text-xs transition rounded-full",
+                  splitMobilePane === "map" ? "bg-[#1E3A5F] text-white" : "text-[#4B4B4B] hover:bg-black/5",
+                ].join(" ")}
+                type="button"
+              >
+                Map pane
+              </button>
+            </div>
+          </div>
+
           <div className="lg:hidden">
-            {view === "map" ? mapPane : listPane}
+            {splitMobilePane === "map" ? mapPane : listPane}
           </div>
 
           {/* DESKTOP SPLIT */}
