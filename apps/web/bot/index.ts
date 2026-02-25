@@ -35,13 +35,14 @@ function extractMapsUrl(text: string): string | null {
   const patterns = [
     /https?:\/\/maps\.app\.goo\.gl\/[^\s]+/i,
     /https?:\/\/goo\.gl\/maps\/[^\s]+/i,
+    /https?:\/\/g\.co\/kgs\/[^\s]+/i,
     /https?:\/\/(?:www\.)?google\.[a-z.]+\/maps\/[^\s]+/i,
     /https?:\/\/maps\.google\.[a-z.]+\/[^\s]+/i,
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    if (match) return match[0];
+    if (match) return match[0].replace(/[),.!?]+$/, "");
   }
   return null;
 }

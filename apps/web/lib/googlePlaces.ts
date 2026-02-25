@@ -12,6 +12,13 @@ type PlaceDetails = {
 };
 
 const MADRID_CENTER = { lat: 40.4168, lng: -3.7038 };
+const EXPAND_TIMEOUT_MS = 8000;
+const EXPAND_MAX_REDIRECTS = 8;
+const EXPAND_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+};
 
 function decodeURIComponentSafe(value: string) {
   try {
@@ -19,6 +26,58 @@ function decodeURIComponentSafe(value: string) {
   } catch {
     return value;
   }
+}
+
+export function extractCidFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const cid = u.searchParams.get("cid");
+    if (cid && /^\d{5,}$/.test(cid)) return cid;
+
+    const match = url.match(/[?&]cid=(\d{5,})/i);
+    return match?.[1] ?? null;
+  } catch {
+    const match = url.match(/[?&]cid=(\d{5,})/i);
+    return match?.[1] ?? null;
+  }
+}
+
+export function extractLatLngFromUrl(url: string): { lat: number; lng: number } | null {
+  const parse = (latStr: string, lngStr: string) => {
+    const lat = Number(latStr);
+    const lng = Number(lngStr);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return { lat, lng };
+  };
+
+  const atMatch = url.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (atMatch?.[1] && atMatch?.[2]) {
+    const parsed = parse(atMatch[1], atMatch[2]);
+    if (parsed) return parsed;
+  }
+
+  const dataMatch = url.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if (dataMatch?.[1] && dataMatch?.[2]) {
+    const parsed = parse(dataMatch[1], dataMatch[2]);
+    if (parsed) return parsed;
+  }
+
+  try {
+    const u = new URL(url);
+    const ll = u.searchParams.get("ll") || u.searchParams.get("sll") || u.searchParams.get("center");
+    if (ll) {
+      const [latStr, lngStr] = ll.split(",").map((x) => x.trim());
+      if (latStr && lngStr) {
+        const parsed = parse(latStr, lngStr);
+        if (parsed) return parsed;
+      }
+    }
+  } catch {
+    // Ignore URL parsing errors and return null below.
+  }
+
+  return null;
 }
 
 function stripTrailingPunctuation(value: string) {
@@ -48,9 +107,11 @@ function isGoogleMapsUrl(value: string) {
   try {
     const u = new URL(value);
     const host = u.hostname.toLowerCase();
+    const path = u.pathname.toLowerCase();
     return (
       host === "maps.app.goo.gl" ||
       host === "goo.gl" ||
+      (host === "g.co" && path.startsWith("/kgs")) ||
       host.startsWith("maps.google.") ||
       (host.includes("google.") && u.pathname.startsWith("/maps"))
     );
@@ -100,6 +161,12 @@ function extractGoogleMapsUrlFromHtml(html: string): string | null {
     if (isGoogleMapsUrl(candidate)) return candidate;
   }
 
+  const ogUrlMatch = normalized.match(/<meta[^>]+property=["']og:url["'][^>]*content=(['"])(.*?)\1/i);
+  if (ogUrlMatch?.[2]) {
+    const candidate = stripTrailingPunctuation(ogUrlMatch[2]);
+    if (isGoogleMapsUrl(candidate)) return candidate;
+  }
+
   const metaMatch = normalized.match(/<meta[^>]+url=([^">\s]+)/i);
   if (metaMatch?.[1]) {
     const candidate = stripTrailingPunctuation(metaMatch[1]);
@@ -107,7 +174,7 @@ function extractGoogleMapsUrlFromHtml(html: string): string | null {
   }
 
   const linkMatch = normalized.match(
-    /https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)\/[^\s"'<>]+/i
+    /https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)\/[^\s"'<>]+/i
   );
   if (linkMatch?.[0]) {
     const candidate = stripTrailingPunctuation(linkMatch[0]);
@@ -178,6 +245,44 @@ function mustEnv(name: string) {
   return v;
 }
 
+async function fetchWithTimeout(input: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXPAND_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function followRedirects(url: string) {
+  let current = url;
+
+  for (let i = 0; i < EXPAND_MAX_REDIRECTS; i += 1) {
+    const res = await fetchWithTimeout(current, {
+      method: "GET",
+      redirect: "manual",
+      headers: EXPAND_HEADERS,
+    });
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) {
+        return { finalUrl: current, html: "" };
+      }
+
+      current = stripTrailingPunctuation(new URL(location, current).toString());
+      continue;
+    }
+
+    const finalUrl = stripTrailingPunctuation(res.url || current);
+    const html = await res.text();
+    return { finalUrl, html };
+  }
+
+  return { finalUrl: current, html: "" };
+}
+
 export async function expandGoogleMapsUrl(url: string): Promise<string> {
   // Handles maps.app.goo.gl and goo.gl short links by following redirects.
   // Some short links require browser-like headers to expand properly.
@@ -195,17 +300,7 @@ export async function expandGoogleMapsUrl(url: string): Promise<string> {
         continue;
       }
 
-      const res = await fetch(current, {
-        redirect: "follow",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        },
-      });
-
-      const finalUrl = stripTrailingPunctuation(res.url || current);
+      const { finalUrl, html } = await followRedirects(current);
 
       const nestedInFinal = extractGoogleMapsUrlFromParams(finalUrl);
       if (nestedInFinal && nestedInFinal !== current) {
@@ -213,7 +308,6 @@ export async function expandGoogleMapsUrl(url: string): Promise<string> {
         continue;
       }
 
-      const html = await res.text();
       const fromHtml = extractGoogleMapsUrlFromHtml(html);
       if (fromHtml && fromHtml !== current) {
         current = fromHtml;

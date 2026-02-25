@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import {
   expandGoogleMapsUrl,
+  extractCidFromUrl,
+  extractLatLngFromUrl,
   extractPlaceIdFromUrl,
   extractTextQueryFromUrl,
   getPlaceDetails,
@@ -111,29 +113,68 @@ export async function POST(req: Request) {
   const expanded = await expandGoogleMapsUrl(body.mapsUrl);
   console.log("[INGEST]", { reqId, step: "expanded", inputUrl: body.mapsUrl, expandedUrl: expanded });
 
-  // 2) Try extract Place ID
+  // 2) Try extract Place ID/CID/lat-lng/query from expanded URL
   let placeId = extractPlaceIdFromUrl(expanded);
+  const cid = extractCidFromUrl(expanded);
+  const latLngFromUrl = extractLatLngFromUrl(expanded);
+  const query = extractTextQueryFromUrl(expanded);
 
-  // 3) Fallback: Text Search using name derived from URL
-  if (!placeId) {
-    const query = extractTextQueryFromUrl(expanded);
-    if (query) {
+  // 3) Enrichment fallback: Text Search using name derived from URL
+  if (!placeId && query) {
+    try {
       placeId = await searchPlaceIdByText(`${query} Madrid`);
+    } catch (err) {
+      console.log("[INGEST_WARN]", { reqId, message: "Text search failed", query, err });
     }
   }
 
-  if (!placeId) {
-    console.log("[INGEST_ERROR]", { reqId, message: "Could not determine Place ID", url: expanded });
+  // We can ingest even without Place ID as long as we have another signal.
+  if (!placeId && !cid && !latLngFromUrl && !query) {
+    console.log("[INGEST_ERROR]", {
+      reqId,
+      message: "Could not determine Place ID/CID/lat-lng/query",
+      url: expanded,
+    });
     return new Response(
-      "Could not determine Google Place ID from URL. Try using a full Google Maps share link.",
+      "Could not determine useful place data from URL. Try another Google Maps share link.",
       { status: 400 }
     );
   }
 
-  console.log("[INGEST]", { reqId, step: "placeId", googlePlaceId: placeId });
+  console.log("[INGEST]", {
+    reqId,
+    step: "resolved-signals",
+    googlePlaceId: placeId,
+    cid,
+    latLng: latLngFromUrl,
+    query,
+  });
 
-  // 4) Fetch details
-  const details = await getPlaceDetails(placeId);
+  // 4) Enrich with Place Details when we have a Place ID
+  let details:
+    | {
+        name: string;
+        address?: string;
+        lat?: number;
+        lng?: number;
+        googleMapsUri?: string;
+        priceLevel?: number;
+        primaryPhotoName?: string;
+      }
+    | null = null;
+
+  if (placeId) {
+    try {
+      details = await getPlaceDetails(placeId);
+    } catch (err) {
+      console.log("[INGEST_WARN]", {
+        reqId,
+        message: "Place details fetch failed; continuing with URL-derived data",
+        placeId,
+        err,
+      });
+    }
+  }
 
   // 5) Choose defaults (your manual overrides win)
   const category = normalizeCategory(body.category) ?? "Other";
@@ -147,16 +188,36 @@ export async function POST(req: Request) {
     body.review?.trim() ||
     `Added from Google Maps. I'll write a real note later.`;
 
+  const inferredName =
+    details?.name ||
+    query ||
+    (latLngFromUrl
+      ? `Pinned place (${latLngFromUrl.lat.toFixed(5)}, ${latLngFromUrl.lng.toFixed(5)})`
+      : "Untitled place");
+
+  const inferredLat = details?.lat ?? latLngFromUrl?.lat;
+  const inferredLng = details?.lng ?? latLngFromUrl?.lng;
+  const inferredMapsUri = details?.googleMapsUri ?? expanded;
+
+  // store CID as synthetic identifier when Place ID is unavailable
+  const identityKey = placeId || (cid ? `cid:${cid}` : undefined);
+
   // Create a slug (id) based on name + neighborhood
-  const baseSlug = slugify(`${details.name}-${neighborhood}`);
+  const baseSlug = slugify(`${inferredName}-${neighborhood}`);
   const id = await ensureUniqueSlug(baseSlug);
 
-  // 6) Upsert by googlePlaceId (so same place updates)
-  const existing = await prisma.place.findFirst({
-    where: { googlePlaceId: placeId },
-  });
+  // 6) Upsert by identity (Place ID or CID fallback). If none, fallback to raw URL.
+  const existing =
+    (identityKey
+      ? await prisma.place.findFirst({
+          where: { googlePlaceId: identityKey },
+        })
+      : null) ||
+    (await prisma.place.findFirst({
+      where: { googleMapsUrl: body.mapsUrl },
+    }));
 
-  const photoUrl = details.primaryPhotoName
+  const photoUrl = details?.primaryPhotoName
     ? `/api/photos/${encodeURIComponent(details.primaryPhotoName)}`
     : undefined;
 
@@ -164,12 +225,13 @@ export async function POST(req: Request) {
     ? await prisma.place.update({
         where: { id: existing.id },
         data: {
-          name: details.name,
-          address: details.address,
-          lat: details.lat,
-          lng: details.lng,
-          googleMapsUri: details.googleMapsUri,
+          name: inferredName,
+          address: details?.address ?? existing.address,
+          lat: inferredLat ?? existing.lat,
+          lng: inferredLng ?? existing.lng,
+          googleMapsUri: inferredMapsUri,
           googleMapsUrl: body.mapsUrl,
+          googlePlaceId: identityKey ?? existing.googlePlaceId,
           category: normalizeCategory(body.category) ?? existing.category,
           neighborhood: body.neighborhood ?? existing.neighborhood,
           rating: body.rating ?? existing.rating,
@@ -177,29 +239,29 @@ export async function POST(req: Request) {
           goodFor: body.goodFor ? JSON.stringify(goodFor) : existing.goodFor,
           review: body.review ? review : existing.review,
           priceLevel:
-            typeof details.priceLevel === "number" ? details.priceLevel : existing.priceLevel,
-          primaryPhotoName: details.primaryPhotoName ?? existing.primaryPhotoName,
+            typeof details?.priceLevel === "number" ? details.priceLevel : existing.priceLevel,
+          primaryPhotoName: details?.primaryPhotoName ?? existing.primaryPhotoName,
           primaryPhotoUrl: photoUrl ?? existing.primaryPhotoUrl,
         },
       })
     : await prisma.place.create({
         data: {
           id,
-          name: details.name,
+          name: inferredName,
           neighborhood,
           category,
           rating,
           tags: JSON.stringify(tags),
           goodFor: goodFor.length ? JSON.stringify(goodFor) : undefined,
           review,
-          priceLevel: typeof details.priceLevel === "number" ? details.priceLevel : undefined,
+          priceLevel: typeof details?.priceLevel === "number" ? details.priceLevel : undefined,
           googleMapsUrl: body.mapsUrl,
-          googlePlaceId: placeId,
-          address: details.address,
-          lat: details.lat,
-          lng: details.lng,
-          googleMapsUri: details.googleMapsUri,
-          primaryPhotoName: details.primaryPhotoName,
+          googlePlaceId: identityKey,
+          address: details?.address,
+          lat: inferredLat,
+          lng: inferredLng,
+          googleMapsUri: inferredMapsUri,
+          primaryPhotoName: details?.primaryPhotoName,
           primaryPhotoUrl: photoUrl,
           published: false,
           featured: false,
@@ -224,6 +286,13 @@ export async function POST(req: Request) {
       neighborhood: saved.neighborhood,
       url: `/places/${saved.id}`,
     },
-    meta: { expandedUrl: expanded, googlePlaceId: placeId },
+    meta: {
+      expandedUrl: expanded,
+      googlePlaceId: placeId,
+      cid,
+      lat: inferredLat,
+      lng: inferredLng,
+      query,
+    },
   });
 }
