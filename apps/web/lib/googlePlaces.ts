@@ -28,8 +28,20 @@ function stripTrailingPunctuation(value: string) {
 function normalizeEscapedUrl(value: string) {
   return value
     .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/\\u0026/g, "&")
     .replace(/\\\//g, "/");
+}
+
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
 }
 
 function isGoogleMapsUrl(value: string) {
@@ -105,6 +117,50 @@ function extractGoogleMapsUrlFromHtml(html: string): string | null {
   return null;
 }
 
+function cleanupTitleCandidate(value: string): string | null {
+  const decoded = decodeHtmlEntities(value)
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!decoded) return null;
+
+  const withoutSuffix = decoded
+    .replace(/\s*[\-|—]\s*google maps$/i, "")
+    .replace(/\s*\|\s*google maps$/i, "")
+    .trim();
+
+  const primary = withoutSuffix
+    .split("·")[0]
+    .split("|")[0]
+    .split("\n")[0]
+    .trim();
+
+  if (!primary || primary.length < 3) return null;
+  if (/^google maps$/i.test(primary)) return null;
+  if (/find local businesses/i.test(primary)) return null;
+
+  return primary;
+}
+
+function extractTextQueryFromHtml(html: string): string | null {
+  const normalized = normalizeEscapedUrl(html);
+
+  const patterns = [
+    /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
+    /<title[^>]*>([^<]+)<\/title>/i,
+    /"title"\s*:\s*"([^"]+)"/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    const candidate = cleanupTitleCandidate(match?.[1] || "");
+    if (candidate) return candidate;
+  }
+
+  return null;
+}
+
 function normalizeQueryCandidate(input?: string | null): string | null {
   if (!input) return null;
   const decoded = decodeURIComponentSafe(input.replace(/\+/g, " ")).trim();
@@ -161,6 +217,14 @@ export async function expandGoogleMapsUrl(url: string): Promise<string> {
       if (fromHtml && fromHtml !== current) {
         current = fromHtml;
         continue;
+      }
+
+      const queryFromHtml = extractTextQueryFromHtml(html);
+      if (queryFromHtml) {
+        const syntheticSearchUrl =
+          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryFromHtml)}`;
+        console.log("[expandGoogleMapsUrl] built search URL from HTML title:", queryFromHtml);
+        return syntheticSearchUrl;
       }
 
       if (finalUrl !== current) {
