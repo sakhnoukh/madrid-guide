@@ -16,11 +16,16 @@ build/
 dist/
 
 # Prisma
-/app/generated/prisma
+**/generated/prisma
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
+
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
 
 # OS files
 .DS_Store

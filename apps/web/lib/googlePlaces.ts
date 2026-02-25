@@ -13,6 +13,108 @@ type PlaceDetails = {
 
 const MADRID_CENTER = { lat: 40.4168, lng: -3.7038 };
 
+function decodeURIComponentSafe(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function stripTrailingPunctuation(value: string) {
+  return value.replace(/[),.!?]+$/, "");
+}
+
+function normalizeEscapedUrl(value: string) {
+  return value
+    .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\u0026/g, "&")
+    .replace(/\\\//g, "/");
+}
+
+function isGoogleMapsUrl(value: string) {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    return (
+      host === "maps.app.goo.gl" ||
+      host === "goo.gl" ||
+      host.startsWith("maps.google.") ||
+      (host.includes("google.") && u.pathname.startsWith("/maps"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function extractGoogleMapsUrlFromParams(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const keys = ["link", "url", "q", "query", "destination", "daddr"];
+
+    for (const key of keys) {
+      const value = u.searchParams.get(key);
+      if (!value) continue;
+
+      const decoded = decodeURIComponentSafe(value.trim());
+      const linkMatch = decoded.match(/https?:\/\/[^\s"'<>]+/i);
+      const candidate = stripTrailingPunctuation(linkMatch ? linkMatch[0] : decoded);
+
+      if (isGoogleMapsUrl(candidate)) return candidate;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function extractGoogleMapsUrlFromHtml(html: string): string | null {
+  const normalized = normalizeEscapedUrl(html);
+
+  const locationMatch =
+    normalized.match(/window\.location\.replace\(['"]([^'"]+)['"]\)/i) ||
+    normalized.match(/window\.location(?:\.href)?\s*=\s*['"]([^'"]+)['"]/i) ||
+    normalized.match(/location\.href\s*=\s*['"]([^'"]+)['"]/i);
+
+  if (locationMatch?.[1]) {
+    const candidate = stripTrailingPunctuation(locationMatch[1]);
+    if (isGoogleMapsUrl(candidate)) return candidate;
+  }
+
+  const canonicalMatch = normalized.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  if (canonicalMatch?.[1]) {
+    const candidate = stripTrailingPunctuation(canonicalMatch[1]);
+    if (isGoogleMapsUrl(candidate)) return candidate;
+  }
+
+  const metaMatch = normalized.match(/<meta[^>]+url=([^">\s]+)/i);
+  if (metaMatch?.[1]) {
+    const candidate = stripTrailingPunctuation(metaMatch[1]);
+    if (isGoogleMapsUrl(candidate)) return candidate;
+  }
+
+  const linkMatch = normalized.match(
+    /https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps|(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)\/[^\s"'<>]+/i
+  );
+  if (linkMatch?.[0]) {
+    const candidate = stripTrailingPunctuation(linkMatch[0]);
+    if (isGoogleMapsUrl(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function normalizeQueryCandidate(input?: string | null): string | null {
+  if (!input) return null;
+  const decoded = decodeURIComponentSafe(input.replace(/\+/g, " ")).trim();
+  if (!decoded) return null;
+  if (/^place_id:/i.test(decoded)) return null;
+  if (/^ChI[a-zA-Z0-9_-]{10,}$/.test(decoded)) return null;
+  if (/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(decoded)) return null;
+  return decoded;
+}
+
 function mustEnv(name: string) {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env var: ${name}`);
@@ -23,42 +125,51 @@ export async function expandGoogleMapsUrl(url: string): Promise<string> {
   // Handles maps.app.goo.gl and goo.gl short links by following redirects.
   // Some short links require browser-like headers to expand properly.
   try {
-    const res = await fetch(url, {
-      redirect: "follow",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      },
-    });
+    let current = stripTrailingPunctuation(url.trim());
+    const seen = new Set<string>();
 
-    // If redirect worked, res.url is the final URL
-    if (res.url && res.url !== url) {
-      console.log("[expandGoogleMapsUrl] expanded:", url, "->", res.url);
-      return res.url;
+    for (let i = 0; i < 4; i += 1) {
+      if (!current || seen.has(current)) break;
+      seen.add(current);
+
+      const nestedBeforeFetch = extractGoogleMapsUrlFromParams(current);
+      if (nestedBeforeFetch && nestedBeforeFetch !== current) {
+        current = nestedBeforeFetch;
+        continue;
+      }
+
+      const res = await fetch(current, {
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        },
+      });
+
+      const finalUrl = stripTrailingPunctuation(res.url || current);
+
+      const nestedInFinal = extractGoogleMapsUrlFromParams(finalUrl);
+      if (nestedInFinal && nestedInFinal !== current) {
+        current = nestedInFinal;
+        continue;
+      }
+
+      const html = await res.text();
+      const fromHtml = extractGoogleMapsUrlFromHtml(html);
+      if (fromHtml && fromHtml !== current) {
+        current = fromHtml;
+        continue;
+      }
+
+      if (finalUrl !== current) {
+        console.log("[expandGoogleMapsUrl] expanded:", url, "->", finalUrl);
+      }
+      return finalUrl;
     }
 
-    // Some redirects embed the final URL in the HTML body (JavaScript redirect)
-    // Try to extract it from the response body
-    const html = await res.text();
-    const match = html.match(/window\.location\.replace\(['"]([^'"]+)['"]\)/);
-    if (match?.[1]) {
-      const decoded = match[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) =>
-        String.fromCharCode(parseInt(hex, 16))
-      );
-      console.log("[expandGoogleMapsUrl] extracted from JS:", decoded);
-      return decoded;
-    }
-
-    // Also check for meta refresh or canonical link
-    const metaMatch = html.match(/<meta[^>]+url=([^">\s]+)/i);
-    if (metaMatch?.[1]) {
-      console.log("[expandGoogleMapsUrl] extracted from meta:", metaMatch[1]);
-      return metaMatch[1];
-    }
-
-    return res.url || url;
+    return current;
   } catch (err) {
     console.log("[expandGoogleMapsUrl] fetch failed, returning original URL:", err);
     return url;
@@ -74,6 +185,10 @@ export function extractPlaceIdFromUrl(url: string): string | null {
     if (q && q.includes("place_id:")) {
       const id = q.split("place_id:")[1]?.trim();
       if (id) return id;
+    }
+
+    if (q && /^ChI[a-zA-Z0-9_-]{10,}$/.test(q)) {
+      return q;
     }
 
     // Sometimes: place_id=ChI... or query_place_id=ChI...
@@ -94,16 +209,36 @@ export function extractPlaceIdFromUrl(url: string): string | null {
 }
 
 export function extractTextQueryFromUrl(url: string): string | null {
-  // Fallback: derive a text query from /maps/place/<NAME>/
+  // Fallback: derive a text query from known maps URL shapes.
   try {
     const u = new URL(url);
+
+    const queryParams = ["query", "q", "destination", "daddr"];
+    for (const key of queryParams) {
+      const candidate = normalizeQueryCandidate(u.searchParams.get(key));
+      if (candidate) return candidate;
+    }
+
     const parts = u.pathname.split("/").filter(Boolean);
+
     const placeIdx = parts.findIndex((p) => p === "place");
     if (placeIdx >= 0 && parts[placeIdx + 1]) {
-      const raw = parts[placeIdx + 1];
-      const decoded = decodeURIComponent(raw.replace(/\+/g, " "));
-      return decoded;
+      const candidate = normalizeQueryCandidate(parts[placeIdx + 1]);
+      if (candidate) return candidate;
     }
+
+    const searchIdx = parts.findIndex((p) => p === "search");
+    if (searchIdx >= 0 && parts[searchIdx + 1]) {
+      const candidate = normalizeQueryCandidate(parts[searchIdx + 1]);
+      if (candidate) return candidate;
+    }
+
+    const pathMatch = u.pathname.match(/\/maps\/(?:place|search)\/([^/]+)/i);
+    if (pathMatch?.[1]) {
+      const candidate = normalizeQueryCandidate(pathMatch[1]);
+      if (candidate) return candidate;
+    }
+
     return null;
   } catch {
     return null;
